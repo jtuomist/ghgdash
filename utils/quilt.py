@@ -70,7 +70,11 @@ def load_datasets(packages, include_units=False):
             else:
                 raise Exception('Dataset %s not found' % package_path)
 
-        df = node()
+        try:
+            df = node()
+        except store.StoreException:
+            _materialize(node)
+            df = node()
 
         if include_units:
             for col_name in df.columns:
