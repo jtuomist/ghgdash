@@ -8,3 +8,6 @@ dash-core-components
 dash-table
 dash-daq
 dash-bootstrap-components
+Flask-Caching
+Flask-Session
+gunicorn
