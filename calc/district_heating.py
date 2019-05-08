@@ -1,22 +1,9 @@
 import math
 import pandas as pd
 import scipy.stats
-from variables import get_variable
-from utils.quilt import load_datasets
 import pintpandas  # noqa
 
-
-INPUT_DATASETS = [
-    'jyrjola/energiateollisuus/district_heating_fuel',
-    'jyrjola/energiateollisuus/district_heating_production',
-    'jyrjola/statfi/fuel_classification'
-]
-
-dh_fuel_df, dh_production_df, fuel_classification = load_datasets(INPUT_DATASETS)
-
-
-def _prepare_fuel_emissions_dataset(fuel_use_df):
-    return df
+from . import calcfunc
 
 
 HEAT_PUMP_COL = 'Lämmön talteenotto tai lämpöpumpun tuotanto'
@@ -29,18 +16,27 @@ CHP_ELECTRICITY_PRODUCTION_COL = 'Kaukolämmön tuotantoon liittyvä sähkön ne
 ALL_FUEL_PRODUCTION_TOTAL_COL = 'Kaukolämmön ja yhteistuotantosähkön tuotantoon käytetyt polttoaineet yhteensä'
 
 
-def calculate_district_heating_unit_emissions(fuel_use_df, production_df):
-    emissionless_bio = get_variable('bio_is_emissionless')
+@calcfunc(
+    variables=dict(
+        bio_is_emissionless='bio_is_emissionless',
+    ),
+    datasets=dict(
+        fuel_classification='jyrjola/statfi/fuel_classification',
+    )
+)
+def calculate_district_heating_unit_emissions(fuel_use_df, production_df, variables, datasets):
+    emissionless_bio = variables['bio_is_emissionless']
 
+    fuel_classification = datasets['fuel_classification']
     fuel_co2 = fuel_classification[['code', 'co2e_emission_factor', 'is_bio']].set_index('code')
     df = fuel_use_df.merge(fuel_co2, how='left', left_on='StatfiFuelCode', right_index=True)
     df.co2e_emission_factor = df.co2e_emission_factor.astype('pint[t/TJ]')
     df.Value = df.Value.astype('pint[GWh]')
     df['Emissions'] = (df.Value * df.co2e_emission_factor).pint.to('tonne').pint.m
 
-    #df = production_df
-    #print(df.loc[df.index == 2017])
-    #print(df.loc[df.index == 2018])
+    # df = production_df
+    # print(df.loc[df.index == 2017])
+    # print(df.loc[df.index == 2018])
 
     if emissionless_bio:
         df.loc[df.is_bio == True, 'Emissions'] = 0  # noqa
@@ -67,7 +63,7 @@ def calculate_district_heating_unit_emissions(fuel_use_df, production_df):
     heat_pump_prod = production_df[HEAT_PUMP_COL]
     heat_pump_prod.name = 'Production with heat pumps'
 
-    df = pd.concat([heat_demand, chp_electricity_production, heat_share, heat_pump_prod, emissions], axis=1)
+    df = pd.concat([heat_demand, chp_electricity_production, heat_pump_prod, emissions], axis=1)
     df['Unit emissions'] = df.Emissions * heat_share / heat_demand
     df['Emissions'] /= 1000
 
@@ -170,18 +166,30 @@ def generate_fuel_use_forecast(fuel_df, production_forecast, target_year, target
     return df
 
 
-def get_district_heating_unit_emissions_forecast():
-    operator = get_variable('district_heating_operator')
-    target_ratios = get_variable('district_heating_target_production_ratios')
-    target_year = get_variable('target_year')
-    target_demand_change = get_variable('district_heating_target_demand_change')
+@calcfunc(
+    variables=dict(
+        operator='district_heating_operator',
+        target_ratios='district_heating_target_production_ratios',
+        target_year='target_year',
+        target_demand_change='district_heating_target_demand_change',
+    ),
+    datasets=dict(
+        dh_fuel_df='jyrjola/energiateollisuus/district_heating_fuel',
+        dh_production_df='jyrjola/energiateollisuus/district_heating_production',
+    )
+)
+def calc_district_heating_unit_emissions_forecast(variables, datasets):
+    operator = variables['operator']
+    target_ratios = variables['target_ratios']
+    target_year = variables['target_year']
+    target_demand_change = variables['target_demand_change']
 
     assert sum(target_ratios.values()) == 100
 
-    df = dh_fuel_df
+    df = datasets['dh_fuel_df']
     fuel_df = df[df.Operator == operator].drop(columns=['Operator', 'OperatorName'])
 
-    df = dh_production_df
+    df = datasets['dh_production_df']
     df = df[df.Operator == operator].drop(columns=['Operator', 'OperatorName'])
     df = df.set_index('Year').drop(columns='Unit').pivot(columns='Quantity', values='Value')
 
@@ -201,6 +209,21 @@ def get_district_heating_unit_emissions_forecast():
     production_df = pd.concat([production_df, production_forecast], sort=False).sort_index()
 
     fuel_df = pd.concat([fuel_df, fuel_use_forecast], sort=False).set_index('Year').sort_index()
-    df = calculate_district_heating_unit_emissions(fuel_df, production_df)
+    production_out = calculate_district_heating_unit_emissions(fuel_df, production_df)
 
-    return df
+    FUEL_MAP = {
+        'Kevyt polttoöljy': 'Keskiraskaat öljyt (kevyt polttoöljy)',
+        'Raskas polttoöljy': 'Raskaat öljyt',
+        'Kivihiili': 'Kivihiili ja antrasiitti',
+    }
+
+    df = fuel_df.dropna(subset=['StatfiFuelCode']).reset_index()
+    df['Quantity'] = df.Quantity.map(lambda x: FUEL_MAP.get(x, x))
+    df = df.drop(columns=['StatfiFuelCode', 'Unit'])
+    df = df.pivot(columns='Quantity', values='Value', index='Year').fillna(0)
+
+    all_fuel_use = df.sum(axis=1)
+    df = df.div(all_fuel_use, axis=0).mul(production_df[FUEL_NET_PRODUCTION_COL], axis=0)
+    df['Lämpöpumput'] = production_out['Production with heat pumps']
+
+    return production_out, df

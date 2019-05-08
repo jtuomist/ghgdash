@@ -12,15 +12,39 @@ VARIABLES = {
         'industry': 30,
     },
 
+    'ghg_emission_targets': [
+        {
+            'year': 2030,
+            'Kaukolämpö': 755,
+            'Öljylämmitys': 16,
+            'Sähkölämmitys': 51,
+            'Kulutussähkö': 243,
+            'Liikenne': 263,
+            'Teollisuus ja työkoneet': 3,
+            'Jätteiden käsittely': 61,
+            'Maatalous': 1,
+        }, {
+            'year': 2035,
+            'Kaukolämpö': 251,
+            'Öljylämmitys': 0,
+            'Sähkölämmitys': 30,
+            'Kulutussähkö': 151,
+            'Liikenne': 230,
+            'Teollisuus ja työkoneet': 3,
+            'Jätteiden käsittely': 51,
+            'Maatalous': 1,
+        }
+    ],
+
     'bio_is_emissionless': True,
 
     'municipality_name': 'Helsinki',
 
     'district_heating_operator': '005',  # Helen Oy
     'district_heating_target_production_ratios': {
+        'Lämpöpumput': 30,
         'Puupelletit ja -briketit': 30,
         'Maakaasu': 30,
-        'Lämpöpumput': 30,
         'Kivihiili ja antrasiitti': 10
     },
     'district_heating_target_demand_change': 0,

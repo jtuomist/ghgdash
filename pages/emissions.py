@@ -131,6 +131,12 @@ def generate_ghg_sliders():
     return dbc.Row(out)
 
 
+def get_target_emissions():
+    targets = get_variable('ghg_emission_targets')
+    for t in targets:
+        pass
+
+
 def get_ghg_emissions_forecast():
     target_year = get_variable('target_year')
     reference_year = get_variable('ghg_reductions_reference_year')

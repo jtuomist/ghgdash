@@ -11,7 +11,7 @@ from . import page_callback, Page
 
 
 INPUT_DATASETS = [
-    'jyrjola/aluesarjat/z02UM_Rakennukset_lammitys',
+    'jyrjola/aluesarjat/z02um_rakennukset_lammitys',
 ]
 
 # Datasets
