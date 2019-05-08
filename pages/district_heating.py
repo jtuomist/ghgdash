@@ -14,23 +14,39 @@ from . import page_callback, Page
 
 
 def generate_district_heating_forecast_graph(df):
-    s = df['District heat consumption emissions']
-    trace = go.Bar(x=s.index, y=s)
+    COL_NAME = 'District heat consumption emissions'
+    hist = df[~df.Forecast]
+    hist_trace = go.Bar(
+        x=hist.index, y=hist[COL_NAME], name='Päästöt (mitattu)',
+        marker=dict(color='#007bff')
+    )
+
+    forecast = df[df.Forecast]
+    forecast_trace = go.Bar(
+        x=forecast.index, y=forecast[COL_NAME], name='Päästöt (ennuste)',
+        marker=dict(color='#aad3ff')
+    )
+
     layout = go.Layout(
         title='Kaukolämmön kulutuksen päästöt',
         yaxis=dict(
-            title='kt CO2e',
+            title='kt (CO₂e.)',
             hoverformat='.3r',
         ),
         margin=go.layout.Margin(
-            t=0,
+            t=30,
             r=15,
             l=40,
         ),
+        # showlegend=False,
+        legend=dict(
+            x=0.9,
+            y=1,
+        )
     )
 
     return go.Figure(
-        data=[trace],
+        data=[hist_trace, forecast_trace],
         layout=layout
     )
 
@@ -62,11 +78,11 @@ def generate_production_mix_graph(df):
 
 def generate_district_heating_forecast_table(df):
     last_hist_year = df[~df.Forecast].index.max()
-    df.index.name = 'Year'
+    df.index.name = 'Vuosi'
 
     data_columns = list(df.columns)
     data_columns.remove('Forecast')
-    data_columns.insert(0, 'Year')
+    data_columns.insert(0, 'Vuosi')
 
     last_forecast_year = df[df.Forecast].index.max()
     table_df = df.loc[df.index.isin([last_hist_year, last_forecast_year - 5, last_forecast_year - 10, last_forecast_year])]
@@ -141,8 +157,8 @@ district_heat_page_content = dbc.Row([
         html.H5('Kaukolämmön kulutus', className='mt-4'),
         dcc.Slider(
             id='district-heating-demand-slider',
-            min=-50,
-            max=50,
+            min=-70,
+            max=20,
             step=5,
             value=0,
             marks={x: '%d %%' % x for x in range(-50, 50 + 1, 25)},
@@ -177,7 +193,6 @@ def district_heating_callback(demand_value, emissionless_bio, *args):
     for slider, share in zip(ratio_sliders, shares):
         ratios[slider.method] = int(share * 100)
 
-    print(ratios)
     diff = 100 - sum(ratios.values())
     ratios[list(ratios.keys())[0]] += diff
 

@@ -108,19 +108,16 @@ ghg_sliders = []
 
 
 def generate_ghg_sliders():
+    weights = get_variable('ghg_reductions_weights')
     out = []
     for key, val in GHG_SECTOR_MAP.items():
-        if val == 'Lämmitys':
-            slider_val = 40
-        else:
-            slider_val = 25
+        slider_val = 25
         slider = dcc.Slider(
             id='ghg-%s-slider' % key,
             min=5,
             max=50,
             step=1,
-            value=slider_val,
-            marks={25: ''},
+            value=weights[key],
         )
         out.append(dbc.Col([
             html.Strong('%s' % val),
@@ -193,26 +190,28 @@ def prepare_input_datasets():
     ghg_emissions = prepare_ghg_emissions_dataset(ghg_in)
 
 
-emissions_page = dbc.Container([
-    dbc.Row([
-        dbc.Col([
-            html.H2('Kasvihuonekaasupäästöt', style=dict(marginBottom='1em')),
-            html.Div(id='ghg-emissions-table-container'),
+emissions_page = dbc.Row([
+    dbc.Col([
+        dbc.Row([
+            dbc.Col([
+                html.H2('Kasvihuonekaasupäästöt', style=dict(marginBottom='1em')),
+                html.Div(id='ghg-emissions-table-container'),
+            ])
+        ], className='mb-4'),
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(
+                    id='ghg-emissions-graph',
+                    config={
+                        'displayModeBar': False,
+                        'showLink': False,
+                    }
+                ),
+            ])
         ])
-    ]),
-    dbc.Row([
-        dbc.Col([
-            html.Div(generate_ghg_sliders(), id='ghg-sliders'),
-        ], md=4),
-        dbc.Col([
-            dcc.Graph(
-                id='ghg-emissions-graph',
-                config={
-                    'displayModeBar': False,
-                    'showLink': False,
-                }
-            ),
-        ], md=8),
+    ], md=8),
+    dbc.Col([
+        html.Div(generate_ghg_sliders(), id='ghg-sliders'),
     ], className='mt-4')
 ])
 

@@ -5,13 +5,12 @@ VARIABLES = {
     'ghg_reductions_reference_year': 1990,
     'ghg_reductions_percentage_in_target_year': 80,
     'ghg_reductions_weights': {
-        'heating': 30,
-        'electricity': 30,
-        'transport': 30,
-        'waste_management': 30,
-        'industry': 30,
+        'heating': 39,
+        'electricity': 21,
+        'transport': 21,
+        'waste_management': 11,
+        'industry': 50
     },
-
     'ghg_emission_targets': [
         {
             'year': 2030,

@@ -4,6 +4,7 @@ import scipy.stats
 import pintpandas  # noqa
 
 from . import calcfunc
+from .electricity import generate_electricity_emission_factor_forecast
 
 
 HEAT_PUMP_COL = 'Lämmön talteenotto tai lämpöpumpun tuotanto'
@@ -48,7 +49,7 @@ def calculate_district_heating_unit_emissions(fuel_use_df, production_df, variab
     heat_production = df[HEAT_DEMAND_COL]
     heat_production.name = 'Heat production'
     chp_electricity_production = df[CHP_ELECTRICITY_PRODUCTION_COL]
-    chp_electricity_production.name = 'Electricity production'
+    chp_electricity_production.name = 'Electricity production (CHP)'
 
     # Determine the CHP alternate production energy consumptions according to the efficiency method
     electricity_production_alternate = chp_electricity_production / 0.39
@@ -63,11 +64,21 @@ def calculate_district_heating_unit_emissions(fuel_use_df, production_df, variab
     heat_pump_prod = production_df[HEAT_PUMP_COL]
     heat_pump_prod.name = 'Production with heat pumps'
 
-    df = pd.concat([heat_demand, chp_electricity_production, heat_pump_prod, emissions], axis=1)
-    df['Unit emissions'] = df.Emissions * heat_share / heat_demand
+    heat_pump_ele = heat_pump_prod / 4
+    heat_pump_ele.name = 'Heat pump electricity consumption'
+
+    # Calculate the emissions from the electricity used by the heat pumps
+    el_emission_factor = generate_electricity_emission_factor_forecast()
+    heat_pump_emissions = heat_pump_ele.multiply(el_emission_factor['EmissionFactor']).fillna(0)
+    heat_pump_emissions = heat_pump_emissions.reindex(heat_pump_ele.index)
+
+    emissions += heat_pump_emissions
+
+    df = pd.concat([heat_demand, chp_electricity_production, heat_pump_prod, heat_pump_ele, emissions], axis=1)
+    df['Emission factor'] = df.Emissions * heat_share / heat_demand
     df['Emissions'] /= 1000
 
-    df['District heat consumption emissions'] = heat_demand * df['Unit emissions'] / 1000
+    df['District heat consumption emissions'] = heat_demand * df['Emission factor'] / 1000
     df['Forecast'] = production_df['Forecast']
 
     return df
