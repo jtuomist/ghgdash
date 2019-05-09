@@ -10,15 +10,15 @@ attrs==19.1.0             # via jsonschema
 certifi==2019.3.9         # via requests
 chardet==3.0.4            # via requests
 click==7.0                # via flask
-dash-bootstrap-components==0.4.0
-dash-core-components==0.46.0
+dash-bootstrap-components==0.5.0
+dash-core-components==0.47.0
 dash-daq==0.1.4
-dash-html-components==0.15.0
+dash-html-components==0.16.0
 dash-table==3.6.0
-dash==0.41.0
-dash_renderer==0.22.0     # via dash
+dash==0.42.0
+dash_renderer==0.23.0     # via dash
 decorator==4.4.0          # via plotly, traitlets
-flask-caching==1.7.0
+flask-caching==1.7.1
 flask-compress==1.4.0     # via dash
 flask-session==0.3.1
 flask==1.0.2              # via dash, flask-caching, flask-compress, flask-session
@@ -32,14 +32,14 @@ jsonschema==3.0.1         # via nbformat
 jupyter-core==4.4.0       # via nbformat
 markupsafe==1.1.1         # via jinja2
 nbformat==4.4.0           # via plotly
-numpy==1.16.2             # via pandas, pyarrow, quilt, scipy
+numpy==1.16.3             # via pandas, pyarrow, quilt, scipy
 packaging==19.0           # via quilt
 pandas==0.24.2
 pint==0.9
-plotly==3.7.1             # via dash
+plotly==3.9.0             # via dash
 pyarrow==0.13.0           # via quilt
 pyparsing==2.4.0          # via packaging
-pyrsistent==0.14.11       # via jsonschema
+pyrsistent==0.15.1        # via jsonschema
 python-dateutil==2.8.0    # via pandas
 pytz==2019.1              # via pandas, plotly
 pyyaml==5.1               # via quilt
@@ -50,6 +50,6 @@ scipy==1.2.1
 six==1.12.0               # via jsonschema, packaging, plotly, pyarrow, pyrsistent, python-dateutil, quilt, retrying, traitlets
 tqdm==4.31.1              # via quilt
 traitlets==4.3.2          # via jupyter-core, nbformat
-urllib3==1.24.1           # via requests
+urllib3==1.24.3           # via requests
 werkzeug==0.15.2          # via flask
 xlrd==1.2.0               # via quilt
