@@ -78,35 +78,47 @@ def generate_population_forecast_graph(pop_df):
             dash='dash'
         )
     )
-    fig = go.Figure(data=[hist, forecast])
+    layout = go.Layout(
+        margin=go.layout.Margin(
+            t=30,
+            r=15,
+            l=40,
+        ),
+    )
+
+    fig = go.Figure(data=[hist, forecast], layout=layout)
     return fig
 
 
-population_page_content = dbc.Container([
-    html.H5('Väestöennusteen korjausprosentti'),
-    html.Div([
-        dcc.Slider(
-            id='population-slider',
-            min=-20,
-            max=20,
-            step=5,
-            value=0,
-            marks={x: '%d %%' % x for x in range(-20, 20 + 1, 5)},
+population_page_content = dbc.Row([
+    dbc.Col([
+        dcc.Graph(
+            id='population-graph',
+            config={
+                'displayModeBar': False,
+                'showLink': False,
+            }
         ),
-    ], style={'marginBottom': 25}),
-    html.Div([
-        html.P(children=[
-            'Väestön määrä vuonna %s: ' % get_variable('target_year'),
-            html.Strong(id='population-count-target-year')
+        html.Div([
+            html.P(children=[
+                'Väestön määrä vuonna %s: ' % get_variable('target_year'),
+                html.Strong(id='population-count-target-year')
+            ]),
         ]),
-    ]),
-    dcc.Graph(
-        id='population-graph',
-        config={
-            'displayModeBar': False,
-            'showLink': False,
-        }
-    ),
+    ], md=8),
+    dbc.Col([
+        html.H5('Väestöennusteen korjausprosentti'),
+        html.Div([
+            dcc.Slider(
+                id='population-slider',
+                min=-20,
+                max=20,
+                step=5,
+                value=0,
+                marks={x: '%d %%' % x for x in range(-20, 20 + 1, 5)},
+            ),
+        ]),
+    ], md=4),
 ])
 
 
