@@ -18,7 +18,6 @@ from flask_session import Session
 
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
     suppress_callback_exceptions=True
 )
 app.css.config.serve_locally = True
