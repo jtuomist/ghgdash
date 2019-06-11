@@ -12,8 +12,15 @@ yarn
 ## Running
 
 Compile the css styles
+
 ```bash
-node-sass styles --output assets --include-path node_modules --output-style compressed
+yarn build-sass
+```
+
+or while developing
+
+```bash
+yarn watch-sass
 ```
 
 Start the development server by:
