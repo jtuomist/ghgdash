@@ -13,3 +13,4 @@ Flask-Session
 Flask-Babel
 gunicorn
 ring
+matplotlib
