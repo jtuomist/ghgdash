@@ -5,6 +5,7 @@
   },
   "scripts": {
     "build-sass": "node-sass styles --output assets --include-path node_modules --output-style compressed",
-    "watch-sass": "node-sass styles --output assets --include-path node_modules --watch"
+    "watch-sass": "node-sass styles --output assets --include-path node_modules --watch",
+    "build": "npm run build-sass"
   }
 }
