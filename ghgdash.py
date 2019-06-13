@@ -12,6 +12,7 @@ from pages.district_heating import page as district_heating_page
 from pages.population import page as population_page
 from pages.buildings import page as buildings_page
 from pages.emissions import page as emissions_page
+from pages.components import page as components_page
 from pages.empty import page as empty_page
 from pages.electricity import page as electricity_page
 
@@ -63,7 +64,7 @@ navbar = dbc.NavbarSimple(
     fluid=True,
 )
 
-left_nav = dbc.Nav(id='left-nav', vertical='md', pills=True)
+left_nav = dbc.ListGroup(id='left-nav')
 
 mock_sub_routes = OrderedDict([
     ('Kaukolämpö', 'kaukolampo'),
@@ -96,6 +97,7 @@ routes = OrderedDict([
     ('kaukolampo', district_heating_page),
     ('empty', empty_page),
     ('electricity', electricity_page),
+    ('components', components_page),
 ])
 
 
@@ -119,17 +121,14 @@ def display_page(current_path):
     left_nav_items = []
     for page_name, page_path in mock_sub_routes.items():
         attr = {}
-        item = dbc.NavItem(
-            dbc.NavLink(
-                [
-                    html.Span(page_name),
-                    dbc.Badge("12345", color="light", className="ml-1 float-right")
-                ],
-                href='/%s' % page_path,
-                **attr,
-                disabled=page_path == "empty"
-            )
-        )
+        item = dbc.ListGroupItem([
+            html.Span(page_name),
+            dbc.Badge("12345", color="light", className="ml-1 float-right")
+            ],
+            href='/%s' % page_path,
+            **attr,
+            disabled = page_path == "empty",
+            action = True)
         left_nav_items.append(item)
 
     if current_page is not None:
