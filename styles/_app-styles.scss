@@ -1,0 +1,31 @@
+
+.app-content {
+  min-width: 760px;
+  margin-top: 4em;
+}
+
+.slider-card {
+  //background-color: $hel-fog;
+  &__content {
+    display: flex;
+  }
+  &__graph {
+    //flex: 1 1 400px;
+    background-color: $hel-tram;
+  }
+  &__slider {
+    //flex: 0 0 200px;
+    padding: 20px;
+    .rc-slider-handle {
+      border-radius: 0;
+      border-color: $hel-black;
+      background-color: $hel-black;
+    }
+    .rc-slider-dot-active {
+      border-color: $hel-suomenlinna;
+    }
+    .rc-slider-track {
+      background-color: $hel-suomenlinna;
+    }
+  }
+}
