@@ -43,7 +43,7 @@ navbar = dbc.NavbarSimple(
     children=[
         dbc.NavItem(dbc.NavLink("Lämmitys", active=True, href="kaukolampo")),
         dbc.NavItem(dbc.NavLink("Liikenne", href="empty")),
-        dbc.NavItem(dbc.NavLink("Sähkö", href="empty")),
+        dbc.NavItem(dbc.NavLink("Sähkö", href="electricity")),
         dbc.NavItem(dbc.NavLink("Jätteet", href="empty")),
         dbc.NavItem(dbc.NavLink("Teollisuus", href="empty")),
         dbc.NavItem(dbc.NavLink("Maatalous", href="empty")),
