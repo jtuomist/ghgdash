@@ -46,12 +46,69 @@ def slider_card(title):
                 className = "slider-card__content",
             )
         ],
-        className = "slider-card"
+        className = "slider-card",
         )
-    ])
+    ],
+    className = "mb-5",)
+
+def total_emissions_bar():
+    return html.Div(
+            dcc.Graph(
+                id = "bigBar",
+                config = {"displayModeBar": False},
+                style = {'height': 100},
+                figure=go.Figure(
+                    data=[
+                        go.Bar(
+                            x=[2476],
+                            name="Lämmitys",
+                            orientation="h"
+                        ),
+                        go.Bar(
+                            x=[1390],
+                            name="Liikenne",
+                            orientation="h"
+                        ),
+                        go.Bar(
+                            x=[681],
+                            name="Sähkö",
+                            orientation="h"
+                        ),
+                        go.Bar(
+                            x=[135],
+                            name="Teollisuus",
+                            orientation="h"
+                        )
+                    ],
+                    layout = go.Layout(
+                        xaxis=dict(
+                            showgrid=False,
+                            showline=False,
+                            showticklabels=False,
+                            zeroline=False,
+                            domain=[0.15, 1]
+                        ),
+                        yaxis=dict(
+                            showgrid=False,
+                            showline=False,
+                            showticklabels=False,
+                            zeroline=False,
+                        ),
+                        margin=go.layout.Margin(
+                            l=20,
+                            r=20,
+                            b=20,
+                            t=20
+                        ),
+                        barmode='stack',
+                        paper_bgcolor='#efefef',
+                        plot_bgcolor='#eeeeee',
+                        showlegend=False,
+                    ))))
 
 components_page_content = html.Div(children=[
-    slider_card('Hello Dash!')
+    slider_card("Hello Sliders"),
+    total_emissions_bar(),
 ])
 
 @page_callback(

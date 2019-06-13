@@ -216,19 +216,20 @@ def draw_district_heat_consumption_emissions(df):
 
 page_content = html.Div([
     dbc.Row([
-        dbc.Col([
-            dcc.Slider(
+        dbc.Col(dbc.Card(dbc.CardBody(html.Div([
+            html.Div(dcc.Graph(id='district-heating-existing-building-unit-heat-factor'), className='slider-card__graph'),
+            html.Div(dcc.Slider(
                 id='district-heating-existing-building-unit-heat-factor-slider',
+                vertical = True,
                 min=-40,
                 max=20,
                 step=1,
                 value=0,
                 marks={x: '%.1f %%' % (x / 10) for x in range(-40, 20 + 1, 5)},
                 className='mb-4'
-            ),
-            dcc.Graph(id='district-heating-existing-building-unit-heat-factor'),
-        ], md=6),
-        dbc.Col([
+            ), className='slider-card__slider'),
+        ], className=" slider-card__content")), className="mb-4"), md=6),
+        dbc.Col(dbc.Card(dbc.CardBody([
             dcc.Slider(
                 id='district-heating-new-building-unit-heat-factor-slider',
                 min=-40,
@@ -239,17 +240,17 @@ page_content = html.Div([
                 className='mb-4'
             ),
             dcc.Graph(id='district-heating-new-building-unit-heat-factor'),
-        ], md=6),
+        ]), className="mb-4"), md=6),
     ]),
     dbc.Row([
-        dbc.Col([
+        dbc.Col(dbc.Card(dbc.CardBody([
             dcc.Graph(id='district-heating-consumption', config=dict(showLink=True)),
-        ], md=6, className='offset-md-3'),
+        ]), className="mb-4"), md=6, className='offset-md-3'),
     ]),
     dbc.Row([
-        dbc.Col([
+        dbc.Col(dbc.Card(dbc.CardBody([
             dcc.Graph(id='district-heating-consumption-emissions'),
-        ], md=8, className='offset-md-2'),
+        ]), className="mb-4"), md=8, className='offset-md-2'),
     ])
 ])
 
