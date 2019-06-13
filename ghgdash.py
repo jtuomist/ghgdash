@@ -79,10 +79,10 @@ app.layout = html.Div([
     navbar,
     dbc.Container(
         dbc.Row([
-            dbc.Col(left_nav, md=3),
+            dbc.Col(left_nav, md=2),
             dbc.Col([
                 html.Div(id='page-content')
-            ], md=9)
+            ], md=10)
         ]),
         className="app-content",
         fluid=True

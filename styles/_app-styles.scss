@@ -14,11 +14,11 @@ body, html {
     display: flex;
   }
   &__graph {
-    //flex: 1 1 400px;
+    flex: 1 1 400px;
     //background-color: $hel-tram;
   }
   &__slider {
-    //flex: 0 0 200px;
+    flex: 0 0 100px;
     padding: 20px;
     .rc-slider-handle {
       border-radius: 0;
