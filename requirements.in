@@ -10,4 +10,6 @@ dash-daq
 dash-bootstrap-components
 Flask-Caching
 Flask-Session
+Flask-Babel
 gunicorn
+ring

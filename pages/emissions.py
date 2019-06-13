@@ -1,3 +1,5 @@
+import pandas as pd
+import scipy.stats
 import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
@@ -33,6 +35,15 @@ def find_consecutive_start(values):
     return start_val
 
 
+def interpolate_series(historical_series):
+    s = historical_series
+
+    res = scipy.stats.linregress(s.index, s)
+    interpolated_series = pd.Series([res.intercept + res.slope * year for year in s.index], index=s.index)
+
+    return interpolated_series
+
+
 def generate_ghg_emission_graph(df):
     COLORS = {
         'Lämmitys': '#3E9FA8',
@@ -45,20 +56,36 @@ def generate_ghg_emission_graph(df):
 
     start_year = find_consecutive_start(df.index.unique())
 
-    hist_df = df.query('~Forecast & index > %s' % start_year)
+    hist_df = df.query('~Forecast & index >= %s' % start_year)
 
     latest_year = hist_df.loc[hist_df.index.max()]
     data_columns = list(latest_year.sort_values(ascending=False).index)
     data_columns.remove('Forecast')
 
+    interpolated_traces = []
+    for sector in data_columns:
+        s = interpolate_series(hist_df[sector])
+        interpolated_traces.append(go.Scatter(
+            x=s.index,
+            y=s,
+            mode='lines',
+            name=sector,
+            line=dict(
+                color=COLORS[sector]
+            ),
+            hoverinfo='none',
+        ))
+
     hist_traces = [go.Scatter(
         x=hist_df.index,
         y=hist_df[sector],
-        mode='lines',
+        mode='markers',
         name=sector,
         line=dict(
             color=COLORS[sector]
-        )
+        ),
+        showlegend=False,
+        hoverinfo='y+name',
     ) for sector in data_columns]
 
     forecast_df = df.query('Forecast | index == %s' % hist_df.index.max())
@@ -92,7 +119,7 @@ def generate_ghg_emission_graph(df):
         ),
     )
 
-    fig = go.Figure(data=hist_traces + forecast_traces, layout=layout)
+    fig = go.Figure(data=hist_traces + interpolated_traces + forecast_traces, layout=layout)
     return fig
 
 

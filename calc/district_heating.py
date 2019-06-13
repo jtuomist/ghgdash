@@ -5,6 +5,7 @@ import pintpandas  # noqa
 
 from . import calcfunc
 from .electricity import generate_electricity_emission_factor_forecast
+from .district_heating_consumption import generate_heat_consumption_forecast
 
 
 HEAT_PUMP_COL = 'Lämmön talteenotto tai lämpöpumpun tuotanto'
@@ -103,7 +104,7 @@ def generate_forecast_series(historical_series, year_until):
     return predictions
 
 
-def generate_production_forecast(production_df, target_year, target_demand_change, target_heat_pump_share):
+def generate_production_forecast(production_df, target_year, heat_demand_forecast, target_heat_pump_share):
     df = production_df
 
     last_year = df.index.max()
@@ -113,17 +114,14 @@ def generate_production_forecast(production_df, target_year, target_demand_chang
     s = generate_forecast_series(loss_ratio, target_year)
     target_loss_ratio = s[s.index.max()]
 
-    # Demand
-    last_demand = df[HEAT_DEMAND_COL].loc[last_year]
-    s = generate_forecast_series(df[HEAT_DEMAND_COL], target_year)
-    target_demand = s[target_year] * (1 + target_demand_change)
-
     last_heat_pump_share = (df[HEAT_PUMP_COL] / df[HEAT_DEMAND_COL]).loc[last_year]
 
-    df = pd.DataFrame({HEAT_DEMAND_COL: [last_demand, target_demand]}, index=[last_year, target_year])
-    df['LossRatio'] = [last_loss_ratio, target_loss_ratio]
+    df = pd.DataFrame({'LossRatio': [last_loss_ratio, target_loss_ratio]}, index=[last_year, target_year])
     df['HeatpumpShare'] = [last_heat_pump_share, target_heat_pump_share]
     df = df.reindex(range(last_year, target_year + 1)).interpolate().iloc[1:].copy()
+
+    df[HEAT_DEMAND_COL] = heat_demand_forecast
+
     df[HEAT_PUMP_COL] = df.HeatpumpShare * df[HEAT_DEMAND_COL]
     df[PRODUCTION_LOSS_COL] = df.LossRatio * df[HEAT_DEMAND_COL]
     df[TOTAL_PRODUCTION_COL] = df[HEAT_DEMAND_COL] + df[PRODUCTION_LOSS_COL]
@@ -182,18 +180,17 @@ def generate_fuel_use_forecast(fuel_df, production_forecast, target_year, target
         operator='district_heating_operator',
         target_ratios='district_heating_target_production_ratios',
         target_year='target_year',
-        target_demand_change='district_heating_target_demand_change',
     ),
     datasets=dict(
         dh_fuel_df='jyrjola/energiateollisuus/district_heating_fuel',
         dh_production_df='jyrjola/energiateollisuus/district_heating_production',
-    )
+    ),
+    funcs=[generate_heat_consumption_forecast]
 )
 def calc_district_heating_unit_emissions_forecast(variables, datasets):
     operator = variables['operator']
     target_ratios = variables['target_ratios']
     target_year = variables['target_year']
-    target_demand_change = variables['target_demand_change']
 
     assert sum(target_ratios.values()) == 100
 
@@ -210,8 +207,10 @@ def calc_district_heating_unit_emissions_forecast(variables, datasets):
     production_df = df
 
     heat_pump_share = target_ratios.get('Lämpöpumput') / 100
+    df = generate_heat_consumption_forecast()
+    demand_forecast = df[df.Forecast].TotalHeatConsumption
     production_forecast = generate_production_forecast(
-        production_df, target_year, target_demand_change / 100, heat_pump_share
+        production_df, target_year, demand_forecast, heat_pump_share
     )
     fuel_use_forecast = generate_fuel_use_forecast(fuel_df, production_forecast, target_year, target_ratios)
 

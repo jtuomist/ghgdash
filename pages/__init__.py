@@ -1,5 +1,5 @@
 class Page:
-    def __init__(self, name, content, callbacks):
+    def __init__(self, name, content, callbacks=[]):
         self.name = name
         self.content = content
         self.callbacks = callbacks
