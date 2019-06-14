@@ -18,7 +18,7 @@ body, html {
     //background-color: $hel-tram;
   }
   &__slider {
-    flex: 0 0 100px;
+    flex: 0 0 1 00px;
     padding: 20px;
     .rc-slider-handle {
       border-radius: 0;
@@ -32,4 +32,43 @@ body, html {
       background-color: $hel-suomenlinna;
     }
   }
+}
+
+.page-summary {
+  margin: 0;
+  background-color: $hel-silver;
+  box-shadow: 3px 3px 5px 6px #ccc;
+  text-align: right;
+
+  &__totals {
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+
+  &__total {
+    display: inline-block;
+
+    &--good {
+      color: $hel-tram;
+    }
+
+    &--bad {
+      color: $hel-brick;
+    }
+  }
+
+  &__target {
+    display: inline-block;
+    margin-left: .65em;
+  }
+
+  .unit {
+    font-size: 66%;
+  }
+}
+
+// Hide Dash dev tool stickies for generate_heat_use_per_net_area_forecast_new_buildings
+
+.dash-debug-menu, ._dash-undo-redo {
+  display: none !important;
 }
