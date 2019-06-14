@@ -4,9 +4,11 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 import numpy as np
+import pandas as pd
 import plotly.graph_objs as go
 from dash_table.Format import Format, Scheme
 from dash.dependencies import Input, Output
+from babel.numbers import format_decimal
 
 from calc.district_heating import calc_district_heating_unit_emissions_forecast
 from calc.district_heating_consumption import (
@@ -16,6 +18,71 @@ from calc.district_heating_consumption import (
 from variables import get_variable, set_variable
 from . import page_callback, Page
 
+import copy
+
+
+DISTRICT_HEATING_GOAL = 251
+
+
+def deepupdate(target, src):
+    for k, v in src.items():
+        if type(v) == list:
+            if k not in target:
+                target[k] = copy.deepcopy(v)
+            else:
+                target[k].extend(v)
+        elif type(v) == dict:
+            if k not in target:
+                target[k] = copy.deepcopy(v)
+            else:
+                deepupdate(target[k], v)
+        elif type(v) == set:
+            if k not in target:
+                target[k] = v.copy()
+            else:
+                target[k].update(v.copy())
+        else:
+            target[k] = copy.copy(v)
+
+
+def make_layout(**kwargs):
+    params = dict(
+        margin=go.layout.Margin(
+            t=30,
+            r=15,
+            l=60,
+        ),
+        yaxis=dict(
+            rangemode='tozero',
+            hoverformat='.3r',
+            separatethousands=True,
+            anchor='free',
+            domain=[0.02, 1],
+            tickfont=dict(
+                family='HelsinkiGrotesk, Arial',
+                size=14,
+            ),
+        ),
+        xaxis=dict(
+            showgrid=False,
+            showline=False,
+            anchor='free',
+            domain=[0.01, 1],
+            tickfont=dict(
+                family='HelsinkiGrotesk, Arial',
+                size=14,
+            ),
+        ),
+        showlegend=False,
+        font=dict(
+            family='HelsinkiGrotesk, Open Sans, Arial'
+        ),
+        separators=', ',
+    )
+
+    deepupdate(params, kwargs)
+
+    return go.Layout(**params)
 
 
 def draw_existing_building_unit_heat_factor_graph(df):
@@ -41,15 +108,9 @@ def draw_existing_building_unit_heat_factor_graph(df):
             dash='dash'
         )
     )
-    layout = go.Layout(
-        margin=go.layout.Margin(
-            t=30,
-            r=15,
-            l=60,
-        ),
+    layout = make_layout(
         yaxis=dict(
             title='kWh/k-m²',
-            rangemode='tozero',
         ),
         showlegend=False,
         title="Olemassaolevan rakennuskannan ominaislämmönkulutus"
@@ -72,17 +133,10 @@ def draw_new_building_unit_heat_factor_graph(df):
             dash='dash'
         )
     )
-    layout = go.Layout(
-        margin=go.layout.Margin(
-            t=30,
-            r=15,
-            l=60,
-        ),
+    layout = make_layout(
         yaxis=dict(
             title='kWh/k-m²',
-            rangemode='tozero',
         ),
-        showlegend=False,
         title="Uuden rakennuskannan ominaislämmönkulutus"
     )
 
@@ -119,37 +173,11 @@ def draw_heat_consumption(df):
     )
     forecast_df = df[df.Forecast]
     forecast_start_year, forecast_end_year = forecast_df.index.min(), forecast_df.index.max()
-    layout = go.Layout(
-        margin=go.layout.Margin(
-            t=30,
-            r=15,
-            l=60,
-        ),
+    layout = make_layout(
         yaxis=dict(
             title='GWh',
-            rangemode='tozero',
-            hoverformat='.3r',
-            separatethousands=True,
-            anchor='free',
-            domain=[0.02, 1],
-            tickfont=dict(
-                family='HelsinkiGrotesk, Arial',
-                size=14,
-            ),
         ),
-        xaxis=dict(
-            showgrid=False,
-            showline=False,
-            anchor='free',
-            domain=[0.01, 1],
-            tickfont=dict(
-                family='HelsinkiGrotesk, Arial',
-                size=14,
-            ),
-        ),
-        showlegend=False,
         title="Kaukolämmön kokonaiskulutus",
-        separators=', ',
         shapes=[
             dict(
                 type='rect',
@@ -193,34 +221,35 @@ def draw_district_heat_consumption_emissions(df):
             dash='dash'
         )
     )
-    layout = go.Layout(
-        margin=go.layout.Margin(
-            t=30,
-            r=15,
-            l=60,
-        ),
+
+    goal_df = pd.DataFrame(
+        [hist_df.iloc[-1]['District heat consumption emissions'], DISTRICT_HEATING_GOAL],
+        index=[hist_df.index.max(), 2035]
+    )
+    goal_df = goal_df.reindex(range(goal_df.index.min(), goal_df.index.max() + 1))
+    goal_df = goal_df.interpolate()
+
+    goal_trace = go.Scatter(
+        x=goal_df.index,
+        y=goal_df,
+        mode='lines',
+        name='Tavoite',
+        line=dict(
+            color='grey',
+            dash='dash'
+        )
+    )
+
+    layout = make_layout(
         yaxis=dict(
             title='kt (CO₂e.)',
-            rangemode='tozero',
-            hoverformat='.3r',
-            separatethousands=True,
         ),
-        separators=', ',
-        showlegend=False,
         title="Kaukolämmön kulutuksen päästöt"
     )
 
-    fig = go.Figure(data=[hist, forecast], layout=layout)
+    fig = go.Figure(data=[hist, forecast, goal_trace], layout=layout)
     return fig
 
-def sticky_page_summary():
-    return dbc.Alert([
-        html.H6("Kaukolämmön kulutuksen päästöt yhteensä (2035)"),
-        html.Div([
-            html.Div(["685",html.Span(" kt(CO₂e.)", className="unit")], className="page-summary__total page-summary__total--bad"),
-            html.Div(["tavoite 500",html.Span(" kt(CO₂e.)", className="unit")], className="page-summary__target")
-        ], className="page-summary__totals"),
-    ],className="page-summary fixed-bottom")
 
 page_content = html.Div([
     dbc.Row([
@@ -228,7 +257,7 @@ page_content = html.Div([
             html.Div(dcc.Graph(id='district-heating-existing-building-unit-heat-factor'), className='slider-card__graph'),
             html.Div(dcc.Slider(
                 id='district-heating-existing-building-unit-heat-factor-slider',
-                vertical = True,
+                vertical=True,
                 min=-40,
                 max=20,
                 step=1,
@@ -236,23 +265,25 @@ page_content = html.Div([
                 marks={x: '%.1f %%' % (x / 10) for x in range(-40, 20 + 1, 5)},
                 className='mb-4'
             ), className='slider-card__slider'),
-        ], className=" slider-card__content")), className="mb-4"), md=6),
-        dbc.Col(dbc.Card(dbc.CardBody([
-            dcc.Slider(
+        ], className="slider-card__content")), className="mb-4"), md=6),
+        dbc.Col(dbc.Card(dbc.CardBody(html.Div([
+            html.Div(dcc.Graph(id='district-heating-new-building-unit-heat-factor'), className='slider-card__graph'),
+            html.Div(dcc.Slider(
                 id='district-heating-new-building-unit-heat-factor-slider',
+                vertical=True,
                 min=-40,
                 max=20,
                 step=1,
                 value=0,
                 marks={x: '%.1f %%' % (x / 10) for x in range(-40, 20 + 1, 5)},
                 className='mb-4'
-            ),
-            dcc.Graph(id='district-heating-new-building-unit-heat-factor'),
-        ]), className="mb-4"), md=6),
+            ), className='slider-card__slider'),
+        ], className="slider-card__content")), className="mb-4"), md=6),
     ]),
     dbc.Row([
         dbc.Col(dbc.Card(dbc.CardBody([
-            dcc.Graph(id='district-heating-consumption', config=dict(showLink=True)),
+            dcc.Graph(id='district-heating-consumption'),
+            html.Div(id='district-heating-unit-emissions-card'),
         ]), className="mb-4"), md=6, className='offset-md-3'),
     ]),
     dbc.Row([
@@ -260,7 +291,7 @@ page_content = html.Div([
             dcc.Graph(id='district-heating-consumption-emissions'),
         ]), className="mb-4"), md=8, className='offset-md-2'),
     ], className="page-content-wrapper"),
-    sticky_page_summary(),
+    html.Div(id='district-heating-sticky-page-summary-container'),
 ])
 
 
@@ -270,6 +301,8 @@ page_content = html.Div([
         Output('district-heating-new-building-unit-heat-factor', 'figure'),
         Output('district-heating-consumption', 'figure'),
         Output('district-heating-consumption-emissions', 'figure'),
+        Output('district-heating-unit-emissions-card', 'children'),
+        Output('district-heating-sticky-page-summary-container', 'children'),
     ], [
         Input('district-heating-existing-building-unit-heat-factor-slider', 'value'),
         Input('district-heating-new-building-unit-heat-factor-slider', 'value'),
@@ -292,7 +325,38 @@ def district_heating_consumption_callback(existing_building_perc, new_building_p
 
     fig4 = draw_district_heat_consumption_emissions(df1)
 
-    return [fig1, fig2, fig3, fig4]
+    last_emission_factor = df1['Emission factor'].iloc[-1]
+    last_year = df1.index.max()
+    unit_emissions_card = dbc.Card([
+        html.A(dbc.CardBody([
+            html.H4('Kaukolämmön päästökerroin', className='card-title'),
+            html.Div([
+                html.Span(
+                    '%s g (CO₂e) / kWh' % (format_decimal(last_emission_factor, format='@@@', locale='fi_FI')),
+                    className='summary-card__value'
+                ),
+                html.Span(' (%s)' % last_year, className='summary-card__year')
+            ])
+        ]), href='/kaukolammon-tuotanto')
+    ], className='summary-card')
+
+    s = df1['District heat consumption emissions']
+    last_emissions = s.iloc[-1]
+    target_emissions = DISTRICT_HEATING_GOAL
+    if last_emissions <= target_emissions:
+        sticky_class = 'page-summary__total--good'
+    else:
+        sticky_class = 'page-summary__total--bad'        
+
+    sticky = [dbc.Alert([
+        html.H6("Kaukolämmön kulutuksen päästöt yhteensä (2035)"),
+        html.Div([
+            html.Div(["%.0f" % last_emissions, html.Span(" kt (CO₂e.) / a", className="unit")], className="page-summary__total " + sticky_class),
+            html.Div(["tavoite %s" % DISTRICT_HEATING_GOAL,html.Span(" kt (CO₂e.) / a", className="unit")], className="page-summary__target")
+        ], className="page-summary__totals"),
+    ], className="page-summary fixed-bottom")]
+
+    return [fig1, fig2, fig3, fig4, unit_emissions_card, sticky]
 
 
 page = Page('Kaukolämmön kulutus', page_content, [district_heating_consumption_callback])

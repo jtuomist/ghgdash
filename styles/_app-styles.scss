@@ -8,6 +8,19 @@ body, html {
   margin-top: 4em;
 }
 
+.summary-card {
+  .card-title {
+    font-size: 1.2rem;
+  }
+  &__value {
+    font-weight: bold;
+    color: grey;
+  }
+  &__year {
+    color: grey;
+  }
+}
+
 .slider-card {
   //background-color: $hel-fog;
   &__content {

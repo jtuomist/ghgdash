@@ -55,27 +55,12 @@ def generate_buildings_forecast_graph(df):
     return go.Figure(data=traces, layout=layout)
 
 
-buildings_page_content = dbc.Container([
-    # html.H5('Asuinrakennusalan korjausprosentti'),
-    # html.Div([
-    #     dcc.Slider(
-    #         id='residential-buildings-slider',
-    #         min=-20,
-    #         max=20,
-    #         step=5,
-    #         value=0,
-    #         marks={x: '%d %%' % x for x in range(-20, 20 + 1, 5)},
-    #     ),
-    # ], style={'marginBottom': 25}),
-    # html.Div([
-    #     html.P(children=[
-    #         'Asuinrakennuskerrosalaa vuonna %s: ' % get_variable('target_year'),
-    #         html.Strong(id='residential-building-area-target-year')
-    #     ]),
-    # ]),
-    dcc.Graph(
-        id='buildings-graph',
-    ),
+buildings_page_content = dbc.Row([
+    dbc.Col([
+        dcc.Graph(
+            id='buildings-graph',
+        ),
+    ])
 ])
 
 

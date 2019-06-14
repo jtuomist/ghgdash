@@ -41,7 +41,7 @@ babel = Babel(server)
 
 navbar = dbc.NavbarSimple(
     children=[
-        dbc.NavItem(dbc.NavLink("Lämmitys", active=True, href="kaukolampo")),
+        dbc.NavItem(dbc.NavLink("Lämmitys", active=True, href="kaukolammon-kulutus")),
         dbc.NavItem(dbc.NavLink("Liikenne", href="empty")),
         dbc.NavItem(dbc.NavLink("Sähkö", href="electricity")),
         dbc.NavItem(dbc.NavLink("Jätteet", href="empty")),
@@ -49,7 +49,8 @@ navbar = dbc.NavbarSimple(
         dbc.NavItem(dbc.NavLink("Maatalous", href="empty")),
         dbc.DropdownMenu(
             [
-                dbc.DropdownMenuItem("Väestö", href='/vaesto')
+                dbc.DropdownMenuItem("Väestö", href='/vaesto'),
+                dbc.DropdownMenuItem("Rakennukset", href='/rakennukset')
             ],
             nav=True,
             in_navbar=True,
@@ -67,7 +68,7 @@ navbar = dbc.NavbarSimple(
 left_nav = dbc.ListGroup(id='left-nav')
 
 mock_sub_routes = OrderedDict([
-    ('Kaukolämpö', 'kaukolampo'),
+    ('Kaukolämpö', 'kaukolammon-kulutus'),
     ('Sähkölämmitys', 'empty'),
     ('Öljylämpö', 'empty'),
     ('Maalämpö', 'empty'),
@@ -91,17 +92,17 @@ app.layout = html.Div([
 
 routes = OrderedDict([
     ('', emissions_page),
-    ('kaukolammonkulutus', district_heating_consumption_page),
+    ('kaukolammon-kulutus', district_heating_consumption_page),
     ('vaesto', population_page),
     ('rakennukset', buildings_page),
-    ('kaukolampo', district_heating_page),
+    ('kaukolammon-tuotanto', district_heating_page),
     ('empty', empty_page),
     ('electricity', electricity_page),
     ('components', components_page),
 ])
 
 
-@app.callback([Output('dropdown-nav', 'children'), Output('left-nav', 'children'), Output('page-content', 'children')],
+@app.callback([Output('left-nav', 'children'), Output('page-content', 'children')],
               [Input('url', 'pathname')])
 def display_page(current_path):
     print('display page for %s' % current_path)
@@ -121,14 +122,15 @@ def display_page(current_path):
     left_nav_items = []
     for page_name, page_path in mock_sub_routes.items():
         attr = {}
-        item = dbc.ListGroupItem([
-            html.Span(page_name),
-            dbc.Badge("12345", color="light", className="ml-1 float-right")
+        item = dbc.ListGroupItem(
+            [
+                html.Span(page_name),
+                dbc.Badge("123 kt", color="light", className="ml-1 float-right")
             ],
             href='/%s' % page_path,
             **attr,
-            disabled = page_path == "empty",
-            action = True)
+            disabled=page_path == "empty",
+            action=True)
         left_nav_items.append(item)
 
     if current_page is not None:
@@ -143,7 +145,7 @@ def display_page(current_path):
     else:
         page_content = html.H2('Sivua ei löydy')
 
-    return [dropdownitems, left_nav_items, page_content]
+    return [left_nav_items, page_content]
 
 
 for page in routes.values():
