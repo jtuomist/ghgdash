@@ -19,8 +19,8 @@ body, html {
     //background-color: $hel-tram;
   }
   &__slider {
-    flex: 0 0 1 00px;
-    padding: 20px;
+    flex: 0 0 70px;
+    padding: 15px;
     .rc-slider-handle {
       border-radius: 0;
       border-color: $hel-black;
@@ -30,7 +30,10 @@ body, html {
       border-color: $hel-suomenlinna;
     }
     .rc-slider-track {
-      background-color: $hel-suomenlinna;
+      background-color: $hel-metro;
+    }
+    .rc-slider-mark {
+      width: 50px;
     }
   }
 }
