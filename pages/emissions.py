@@ -10,6 +10,7 @@ from dash.dependencies import Input, Output
 
 from variables import get_variable, set_variable
 from utils.quilt import load_datasets
+from utils.colors import GHG_MAIN_SECTOR_COLORS
 from . import page_callback, Page
 
 
@@ -239,7 +240,8 @@ emissions_page = dbc.Row([
     ], md=8),
     dbc.Col([
         html.Div(generate_ghg_sliders(), id='ghg-sliders'),
-    ], className='mt-4')
+    ], className='mt-4'),
+    html.Div(id='emission-sectors-graphs')
 ])
 
 
@@ -295,4 +297,94 @@ def ghg_slider_callback(*values):
 
 prepare_input_datasets()
 
-page = Page('Päästöt', emissions_page, [ghg_slider_callback])
+
+def draw_emission_graph(df):
+    start_year = find_consecutive_start(df.index.unique())
+
+    hist_df = df.query('~Forecast & index >= %s' % start_year)
+    latest_hist_year = hist_df.loc[hist_df.index.max()]
+
+    sector_name = df.name
+
+    s = interpolate_series(hist_df.Emissions)
+    regression_trace = go.Scatter(
+        x=s.index,
+        y=s,
+        mode='lines',
+        name=sector_name,
+        line=dict(
+            color=GHG_MAIN_SECTOR_COLORS[sector_name]
+        ),
+        hoverinfo='none',
+    )
+
+    hist_trace = go.Scatter(
+        x=hist_df.index,
+        y=hist_df.Emissions,
+        mode='markers',
+        name=sector_name,
+        line=dict(
+            color=GHG_MAIN_SECTOR_COLORS[sector_name]
+        ),
+        showlegend=False,
+        hoverinfo='y+name',
+    )
+
+    forecast_df = df.query('Forecast')
+    forecast_trace = go.Scatter(
+        x=forecast_df.index,
+        y=forecast_df.Emissions,
+        mode='lines',
+        name=sector_name,
+        line=dict(
+            color='grey',
+            dash='dash',
+        ),
+        showlegend=False,
+    )
+
+    layout = go.Layout(
+        yaxis=dict(
+            hoverformat='.3r',
+            separatethousands=True,
+            title='kt (CO₂-ekv.)',
+            rangemode='tozero',
+        ),
+        margin=go.layout.Margin(
+            t=40,
+            r=20,
+        ),
+        showlegend=False,
+        title=sector_name
+    )
+
+    fig = go.Figure(data=[regression_trace, hist_trace, forecast_trace], layout=layout)
+    return fig
+
+
+def render_page():
+    df = get_ghg_emissions_forecast()
+
+    content = emissions_page
+
+    sectors = list(df.columns)
+    sectors.remove('Forecast')
+
+    cols = []
+    for sector_name in sectors:
+        sec_df = df[[sector_name, 'Forecast']]
+        sec_df = sec_df.rename(columns={sector_name: 'Emissions'})
+        sec_df.name = sector_name
+
+        cols.append(dbc.Col([
+            dcc.Graph(figure=draw_emission_graph(sec_df))
+        ], md=6))
+
+    content['emission-sectors-graphs'].children = [
+        dbc.Row(cols)
+    ]
+
+    return content
+
+
+page = Page('Päästöt', render_page, [ghg_slider_callback])
