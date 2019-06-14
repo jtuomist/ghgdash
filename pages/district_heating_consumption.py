@@ -213,6 +213,14 @@ def draw_district_heat_consumption_emissions(df):
     fig = go.Figure(data=[hist, forecast], layout=layout)
     return fig
 
+def sticky_page_summary():
+    return dbc.Alert([
+        html.H6("Kaukolämmön kulutuksen päästöt yhteensä (2035)"),
+        html.Div([
+            html.Div(["685",html.Span(" kt(CO₂e.)", className="unit")], className="page-summary__total page-summary__total--bad"),
+            html.Div(["tavoite 500",html.Span(" kt(CO₂e.)", className="unit")], className="page-summary__target")
+        ], className="page-summary__totals"),
+    ],className="page-summary fixed-bottom")
 
 page_content = html.Div([
     dbc.Row([
@@ -251,7 +259,8 @@ page_content = html.Div([
         dbc.Col(dbc.Card(dbc.CardBody([
             dcc.Graph(id='district-heating-consumption-emissions'),
         ]), className="mb-4"), md=8, className='offset-md-2'),
-    ])
+    ], className="page-content-wrapper"),
+    sticky_page_summary(),
 ])
 
 

@@ -172,7 +172,7 @@ def get_ghg_emissions_forecast():
 
     ref_emissions = df[df.index == reference_year]['Päästöt'].sum()
     target_emissions = ref_emissions * (1 - (reduction_percentage / 100))
-    last_emissions = dict(df.loc[[df.index.max()], ['Sektori1', 'Päästöt']].reset_index().set_index('Sektori1')['Päästöt'])    
+    last_emissions = dict(df.loc[[df.index.max()], ['Sektori1', 'Päästöt']].reset_index().set_index('Sektori1')['Päästöt'])
 
     other_sectors = [s for s in last_emissions.keys() if s not in GHG_SECTOR_MAP.values()]
 
@@ -228,6 +228,7 @@ emissions_page = dbc.Row([
         ], className='mb-4'),
         dbc.Row([
             dbc.Col([
+                dbc.Card(dbc.CardBody(
                 dcc.Graph(
                     id='ghg-emissions-graph',
                     config={
@@ -235,12 +236,14 @@ emissions_page = dbc.Row([
                         'showLink': False,
                     }
                 ),
-            ])
+                ), className="mb-5")
+            ], md=8),
+            dbc.Col([
+                html.Div(generate_ghg_sliders(), id='ghg-sliders'),
+            ], md=4, className='mt-4'),
         ])
-    ], md=8),
-    dbc.Col([
-        html.Div(generate_ghg_sliders(), id='ghg-sliders'),
-    ], className='mt-4'),
+    ]),
+
     html.Div(id='emission-sectors-graphs')
 ])
 
@@ -377,7 +380,9 @@ def render_page():
         sec_df.name = sector_name
 
         cols.append(dbc.Col([
+            dbc.Card(dbc.CardBody(
             dcc.Graph(figure=draw_emission_graph(sec_df))
+        ), className="mb-5")
         ], md=6))
 
     content['emission-sectors-graphs'].children = [
