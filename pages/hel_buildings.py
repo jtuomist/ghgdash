@@ -135,7 +135,24 @@ except Exception:
 
 
 page_content = dbc.Row([dbc.Col([
-    html.H5('Aurinkopaneelit'),
+    dbc.Row([
+        dbc.Col([
+            html.H5('Rakennus'),
+            dcc.Dropdown(
+                id='building-selector-dropdown',
+                options=[dict(label=b.description, value=b_id) for b_id, b in buildings_with_pv.iterrows()],
+                value=buildings_with_pv.index[0]
+            )
+        ], className='mb-4'),
+    ]),
+    dbc.Row([
+        dbc.Col([
+            dcc.Loading(id="loading-3", children=[
+                html.Div(id="building-info-placeholder")
+            ], type="default"),
+        ]),
+    ]),
+    html.H4('Aurinkopaneelit'),
     dbc.Row([
         dbc.Col([
             dbc.FormGroup([
@@ -212,16 +229,6 @@ page_content = dbc.Row([dbc.Col([
             dbc.Button("Laske", id="calculate-button", className="float-right"),
         ])
     ]),
-    dbc.Row([
-        dbc.Col([
-            html.H5('Rakennus'),
-            dcc.Dropdown(
-                id='building-selector-dropdown',
-                options=[dict(label=b.description, value=b_id) for b_id, b in buildings_with_pv.iterrows()],
-                value=buildings_with_pv.index[0]
-            )
-        ], className='mb-4'),
-    ]),
     dcc.Loading(id="loading-1", children=[
         html.Div(id="building-placeholder")
     ], type="default"),
@@ -270,11 +277,12 @@ def generate_pv_summary(percentage_power, building, sim_df, variables, datasets)
         EnergySalesIncome=sim_df.EnergySalesIncome.sum() / nr_years,
         EnergyCostSavings=from_solar_sum * variables['price_of_purchased_electricity'] / nr_years,
         InstallationPrice=installation_price,
-        EmissionsReduction=sim_df.EmissionsReduction.sum() / nr_years / 1000  # in kg
     ), name=percentage_power)
 
     investment_per_year = s.InstallationPrice / variables['investment_years']
     s['NetCosts'] = investment_per_year - s.EnergySalesIncome - s.EnergyCostSavings
+
+    s['EmissionsReduction'] = sim_df.EmissionsReduction.sum() / nr_years / 1000  # in kg
     s['EmissionReductionCost'] = s.NetCosts / s.EmissionsReduction  # € / kg
 
     return s
@@ -378,8 +386,95 @@ def visualize_building_pv_summary(building, df, variables):
     ])
 
 
-def render_pv_simulation(building, datasets, variables):
-    pass
+@page_callback(
+    Output('building-info-placeholder', 'children'),
+    [
+        Input('building-selector-dropdown', 'value'),
+    ]
+)
+def building_base_info_callback(selected_building_id):
+    datasets = dict(
+        electricity_supply_emission_factor=calculate_electricity_supply_emission_factor()['EmissionFactor'],
+    )
+
+    if selected_building_id is None:
+        el_s = datasets['electricity_supply_emission_factor']
+        el_s = el_s.loc[el_s.index >= '2016']
+        el_s = el_s.groupby(pd.Grouper(freq='d')).mean()
+        trace = go.Scatter(
+            y=el_s, x=el_s.index, mode='lines',
+        )
+        layout = make_layout(title='Sähkönhankinnan päästökerroin')
+        fig = go.Figure(data=[trace], layout=layout)
+        g2 = dcc.Graph(id='electricity-supply-unit-emissions', figure=fig)
+
+        return html.Div([
+            dbc.Row([
+                dbc.Col([make_graph_card(g2)]),
+            ]),
+        ])
+
+    building = buildings_with_pv.loc[selected_building_id]
+
+    samples = pd.read_parquet('data/nuuka/%s.parquet' % selected_building_id)
+    samples = samples.query('time < "2019-01-01T00:00:00Z"')
+
+    el_samples = samples[samples.sensor_id.isin(electricity_sensors.index)]
+    el_samples = el_samples.groupby(['building_id', 'time']).value.sum().reset_index()
+    el_samples = el_samples.set_index('time')
+    el_samples['emissions'] = el_samples['value'].mul(datasets['electricity_supply_emission_factor'], axis=0, fill_value=0) / 1000
+
+    dh_samples = samples[samples.sensor_id.isin(heating_sensors.index)].query('value < 10000')
+    dh_samples = dh_samples.groupby(['building_id', 'time']).value.sum().reset_index()
+    dh_samples = dh_samples.set_index('time')
+    dh_samples['emissions'] = dh_samples['value'] * 200 / 1000
+
+    group_freq = 'd'
+    el_emissions = el_samples.emissions.groupby(pd.Grouper(freq=group_freq)).sum()
+
+    t1 = go.Scatter(
+        x=el_emissions.index,
+        y=el_emissions,
+        mode='lines',
+        line=dict(width=0),
+        stackgroup='one',
+        name='Sähkönkulutuksen päästöt',
+    )
+    traces = [t1]
+
+    if not dh_samples.empty:
+        dh_emissions = dh_samples.emissions.groupby(pd.Grouper(freq=group_freq)).sum()
+
+        t2 = go.Scatter(
+            x=dh_emissions.index,
+            y=dh_emissions,
+            mode='lines',
+            line=dict(width=0),
+            stackgroup='one',
+            name='Lämmönkulutuksen päästöt'
+        )
+        traces.append(t2)
+
+    fig = go.Figure(data=traces, layout=make_layout(
+        title='Kiinteistön energiankulutuksen päästöt: %s' % building.description,
+        yaxis=dict(
+            rangemode='normal',
+            title='kg (CO₂e.)'
+        ),
+        margin=go.layout.Margin(
+            t=30,
+            r=60,
+            l=60,
+        ),
+        showlegend=True,
+        legend=dict(
+            x=0,
+            y=1,
+            bgcolor='#E2E2E2',
+        ),
+    ))
+
+    return make_graph_card(dcc.Graph(id='building-all-emissions-graph', figure=fig))
 
 
 @page_callback(
@@ -426,18 +521,9 @@ def building_selector_callback(
         fig = go.Figure(data=[trace], layout=layout)
         g1 = dcc.Graph(id='solar-radiation', figure=fig)
 
-        el_s = datasets['electricity_supply_emission_factor']
-        trace = go.Scatter(y=el_s, x=el_s.index, mode='lines')
-        layout = make_layout(title='Sähkönhankinnan päästökerroin')
-        fig = go.Figure(data=[trace], layout=layout)
-        g2 = dcc.Graph(id='electricity-supply-unit-emissions', figure=fig)
-
         return html.Div([
             dbc.Row([
                 dbc.Col([make_graph_card(g1)]),
-            ]),
-            dbc.Row([
-                dbc.Col([make_graph_card(g2)]),
             ]),
         ])
 
@@ -449,9 +535,6 @@ def building_selector_callback(
 
     sim = analyze_building(building, el_samples, None, variables, datasets)
 
-    #print(sim)
-    #df = sim['simulated']
-    #print(df.loc[(df.index >= '2018-07-01 12:00') & (df.index < '2018-08 12:00')])
     out = html.Div([
         visualize_building_pv_summary(building, sim, variables)
     ])
@@ -468,10 +551,10 @@ def translate_sum_col(n, unit=False):
         GridEnergyOutput='Sähkön tuotanto verkkoon',
         EnergySalesIncome='Tuotto sähkön myynnistä',
         EnergyCostSavings='Kustannussäästö',
-        InstallationPrice='Asennuksen kustannukset',
+        InstallationPrice='Investointikustannukset',
         NetCosts='Nettokustannukset',
         EmissionsReduction='Päästövähennykset',
-        EmissionReductionCost='Päästövähennyksen investointikustannukset',
+        EmissionReductionCost='Päästövähennyksen nettokustannukset',
     )
     UNITS = dict(
         SolarPeakPower='kW',
@@ -545,7 +628,8 @@ def pv_summary_graph_click(
 
     DIV_1000_COLS = (
         'SolarEnergyProduction', 'BuildingEnergyConsumption', 'GridInputReduction',
-        'GridEnergyOutput'
+        'GridEnergyOutput', 'EnergySalesIncome', 'EnergyCostSavings', 'InstallationPrice',
+        'NetCosts',
     )
     for col in DIV_1000_COLS:
         summary[col] /= 1000
@@ -609,9 +693,9 @@ def pv_summary_graph_click(
     ))
 
     return [
-        html.Div([tbl]),
-        html.Div(make_graph_card(dcc.Graph('simulated-pv-time-series', figure=fig)))
+        html.Div([tbl], className='mb-4'),
+        html.Div(make_graph_card(dcc.Graph('simulated-pv-time-series', figure=fig))),
     ]
 
 
-page = Page('Kaupungin rakennukset ja ilmasto', page_content, [building_selector_callback, pv_summary_graph_click])
+page = Page('Kaupungin rakennukset ja ilmasto', page_content, [building_base_info_callback, building_selector_callback, pv_summary_graph_click])
