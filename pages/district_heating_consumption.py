@@ -15,74 +15,12 @@ from calc.district_heating_consumption import (
     generate_heat_consumption_forecast, generate_heat_use_per_net_area_forecast_existing_buildings,
     generate_heat_use_per_net_area_forecast_new_buildings
 )
-from variables import get_variable, set_variable
+from variables import set_variable
+from utils.graphs import make_layout
 from . import page_callback, Page
-
-import copy
 
 
 DISTRICT_HEATING_GOAL = 251
-
-
-def deepupdate(target, src):
-    for k, v in src.items():
-        if type(v) == list:
-            if k not in target:
-                target[k] = copy.deepcopy(v)
-            else:
-                target[k].extend(v)
-        elif type(v) == dict:
-            if k not in target:
-                target[k] = copy.deepcopy(v)
-            else:
-                deepupdate(target[k], v)
-        elif type(v) == set:
-            if k not in target:
-                target[k] = v.copy()
-            else:
-                target[k].update(v.copy())
-        else:
-            target[k] = copy.copy(v)
-
-
-def make_layout(**kwargs):
-    params = dict(
-        margin=go.layout.Margin(
-            t=30,
-            r=15,
-            l=60,
-        ),
-        yaxis=dict(
-            rangemode='tozero',
-            hoverformat='.3r',
-            separatethousands=True,
-            anchor='free',
-            domain=[0.02, 1],
-            tickfont=dict(
-                family='HelsinkiGrotesk, Arial',
-                size=14,
-            ),
-        ),
-        xaxis=dict(
-            showgrid=False,
-            showline=False,
-            anchor='free',
-            domain=[0.01, 1],
-            tickfont=dict(
-                family='HelsinkiGrotesk, Arial',
-                size=14,
-            ),
-        ),
-        showlegend=False,
-        font=dict(
-            family='HelsinkiGrotesk, Open Sans, Arial'
-        ),
-        separators=', ',
-    )
-
-    deepupdate(params, kwargs)
-
-    return go.Layout(**params)
 
 
 def draw_existing_building_unit_heat_factor_graph(df):
@@ -346,7 +284,7 @@ def district_heating_consumption_callback(existing_building_perc, new_building_p
     if last_emissions <= target_emissions:
         sticky_class = 'page-summary__total--good'
     else:
-        sticky_class = 'page-summary__total--bad'        
+        sticky_class = 'page-summary__total--bad'
 
     sticky = [dbc.Alert([
         html.H6("Kaukolämmön kulutuksen päästöt yhteensä (2035)"),

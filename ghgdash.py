@@ -15,6 +15,7 @@ from pages.emissions import page as emissions_page
 from pages.components import page as components_page
 from pages.empty import page as empty_page
 from pages.electricity import page as electricity_page
+from pages.hel_buildings import page as hel_buildings_page
 
 from flask_caching import Cache
 from flask_session import Session
@@ -96,13 +97,16 @@ routes = OrderedDict([
     ('vaesto', population_page),
     ('rakennukset', buildings_page),
     ('kaukolammon-tuotanto', district_heating_page),
+    ('helsingin-rakennukset', hel_buildings_page),
     ('empty', empty_page),
     ('electricity', electricity_page),
     ('components', components_page),
 ])
 
 
-@app.callback([Output('left-nav', 'children'), Output('page-content', 'children')],
+#@app.callback([Output('left-nav', 'children'), Output('page-content', 'children')],
+#              [Input('url', 'pathname')])
+@app.callback([Output('page-content', 'children')],
               [Input('url', 'pathname')])
 def display_page(current_path):
     print('display page for %s' % current_path)
@@ -145,7 +149,8 @@ def display_page(current_path):
     else:
         page_content = html.H2('Sivua ei löydy')
 
-    return [left_nav_items, page_content]
+    #return [left_nav_items, page_content]
+    return [page_content]
 
 
 for page in routes.values():

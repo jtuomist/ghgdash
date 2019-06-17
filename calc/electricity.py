@@ -1,3 +1,4 @@
+from datetime import timedelta
 import numpy as np
 import pandas as pd
 import scipy.stats
@@ -69,5 +70,55 @@ def generate_electricity_consumption_forecast(variables, datasets):
     return df
 
 
+@calcfunc(
+    datasets=dict(
+        et_hourly='jyrjola/energiateollisuus/electricity_production_hourly',
+        et_fuels='jyrjola/energiateollisuus/electricity_production_fuels'
+    ),
+    variables=['bio_is_emissionless'],
+)
+def calculate_electricity_production_emissions(datasets, variables):
+    et_fuels = datasets['et_fuels']
+    df = et_fuels.copy()
+    df['FuelEmissionFactor'] = df.Fuel.map({
+        'Bio': 0 if variables['bio_is_emissionless'] else 112,
+        'Coal': 106.0 * 0.99,
+        'Oil': 79.2,
+        'Natural gas': 55.3,
+        'Peat': 107.6 * 0.99,
+        'Other': 31.8 * 0.99
+    })
+    df['Emissions'] = df['FuelEmissionFactor'] * df['FuelUse'] / 1000
+
+    df = df.groupby(['Date', 'Method'])[['Production', 'Emissions']].sum()
+    df['EmissionFactor'] = df['Emissions'] / df['Production'] * 1000
+    df = df['EmissionFactor'].unstack('Method')
+    df.index += timedelta(days=14)
+    df = df.resample('h').mean().interpolate()
+    df.index = df.index.tz_localize('Europe/Helsinki', nonexistent='NaT', ambiguous='NaT')
+    df = df.loc[df.index.notnull()]
+
+    return df
+
+
+@calcfunc(
+    datasets=dict(
+        et_hourly='jyrjola/energiateollisuus/electricity_production_hourly',
+    ),
+    funcs=[calculate_electricity_production_emissions]
+)
+def calculate_electricity_supply_emission_factor(datasets):
+    df = datasets['et_hourly'].copy()
+
+    hourly_emission_factors = calculate_electricity_production_emissions()
+    chp_emissions = df[['CHP-Industry', 'CHP-District heating']].mul(hourly_emission_factors['CHP'], axis=0).dropna()
+    separate_thermal_emissions = df['Separate Thermal Power'].mul(hourly_emission_factors['Separate Thermal'], axis=0).dropna()
+
+    supply_emissions = chp_emissions.sum(axis=1) + separate_thermal_emissions
+    df['Emissions'] = supply_emissions
+    df['EmissionFactor'] = supply_emissions.div(df['Production'] + df['Import'], axis=0)
+    return df
+
+
 if __name__ == '__main__':
-    print(generate_electricity_consumption_forecast())
+    print(calculate_electricity_supply_emission_factor())
