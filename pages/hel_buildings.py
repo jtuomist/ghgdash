@@ -424,7 +424,7 @@ def building_base_info_callback(selected_building_id):
     el_samples = el_samples.set_index('time')
     el_samples['emissions'] = el_samples['value'].mul(datasets['electricity_supply_emission_factor'], axis=0, fill_value=0) / 1000
 
-    dh_samples = samples[samples.sensor_id.isin(heating_sensors.index)].query('value < 10000')
+    dh_samples = samples[samples.sensor_id.isin(heating_sensors.index)].query('value < 30000')
     dh_samples = dh_samples.groupby(['building_id', 'time']).value.sum().reset_index()
     dh_samples = dh_samples.set_index('time')
     dh_samples['emissions'] = dh_samples['value'] * 200 / 1000
@@ -456,7 +456,7 @@ def building_base_info_callback(selected_building_id):
         traces.append(t2)
 
     fig = go.Figure(data=traces, layout=make_layout(
-        title='Kiinteistön energiankulutuksen päästöt: %s' % building.description,
+        title='Kiinteistön energiankulutuksen päästöt: %s' % ' '.join(building.description.split(' ')[1:]),
         yaxis=dict(
             rangemode='normal',
             title='kg (CO₂e.)'
@@ -534,10 +534,12 @@ def building_selector_callback(
     el_samples = el_samples.groupby(['building_id', 'time']).value.sum().reset_index()
 
     sim = analyze_building(building, el_samples, None, variables, datasets)
-
-    out = html.Div([
-        visualize_building_pv_summary(building, sim, variables)
-    ])
+    if sim is not None:
+        out = html.Div([
+            visualize_building_pv_summary(building, sim, variables)
+        ])
+    else:
+        out = html.Div()
 
     return out
 
