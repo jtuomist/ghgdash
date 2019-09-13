@@ -41,10 +41,10 @@ VARIABLES = {
 
     'district_heating_operator': '005',  # Helen Oy
     'district_heating_target_production_ratios': {
-        'Lämpöpumput': 30,
-        'Puupelletit ja -briketit': 30,
-        'Maakaasu': 30,
-        'Kivihiili ja antrasiitti': 10
+        'Lämpöpumput': 33,
+        'Puupelletit ja -briketit': 33,
+        'Maakaasu': 34,
+        'Kivihiili ja antrasiitti': 0
     },
     'district_heating_target_demand_change': 0,
 
