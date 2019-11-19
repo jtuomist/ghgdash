@@ -35,7 +35,7 @@ VARIABLES = {
         }
     ],
 
-    'bio_is_emissionless': True,
+    'bio_emission_factor': 0,  # In percents
 
     'municipality_name': 'Helsinki',
 

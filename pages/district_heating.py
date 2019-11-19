@@ -149,10 +149,15 @@ district_heat_page_content = dbc.Row([
         html.Div(id='district-heating-table-container'),
     ], md=8),
     dbc.Col([
-        html.H5('Biopolttoaine päästötöntä'),
-        daq.ToggleSwitch(
-            id='district-heating-emissionless-bio',
-            value=get_variable('bio_is_emissionless')
+        html.H5('Biopolttoaineen päästökerroin'),
+        html.Small('(suhteessa fysikaaliseen päästökertoimeen)'),
+        dcc.Slider(
+            id='bio-emission-factor',
+            value=get_variable('bio_emission_factor'),
+            min=0,
+            max=150,
+            step=10,
+            marks={x: '%d %%' % x for x in range(0, 150 + 1, 25)}
         ),
         html.H5('Kaukolämmön kulutus', className='mt-4'),
         dcc.Slider(
@@ -177,13 +182,13 @@ district_heat_page_content = dbc.Row([
         Output('district-heating-production-source-graph', 'figure'),
     ], [
         Input('district-heating-demand-slider', 'value'),
-        Input('district-heating-emissionless-bio', 'value'),
+        Input('bio-emission-factor', 'value'),
         *[Input(s.id, 'value') for s in ratio_sliders]
     ]
 )
-def district_heating_callback(demand_value, emissionless_bio, *args):
+def district_heating_callback(demand_value, bio_emission_factor, *args):
     set_variable('district_heating_target_demand_change', demand_value)
-    set_variable('bio_is_emissionless', emissionless_bio)
+    set_variable('bio_emission_factor', bio_emission_factor)
 
     ratios = get_variable('district_heating_target_production_ratios')
 

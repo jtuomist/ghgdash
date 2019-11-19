@@ -75,13 +75,13 @@ def generate_electricity_consumption_forecast(variables, datasets):
         et_hourly='jyrjola/energiateollisuus/electricity_production_hourly',
         et_fuels='jyrjola/energiateollisuus/electricity_production_fuels'
     ),
-    variables=['bio_is_emissionless'],
+    variables=['bio_emission_factor'],
 )
 def calculate_electricity_production_emissions(datasets, variables):
     et_fuels = datasets['et_fuels']
     df = et_fuels.copy()
     df['FuelEmissionFactor'] = df.Fuel.map({
-        'Bio': 0 if variables['bio_is_emissionless'] else 112,
+        'Bio': 112 * (variables['bio_emission_factor'] / 100),
         'Coal': 106.0 * 0.99,
         'Oil': 79.2,
         'Natural gas': 55.3,

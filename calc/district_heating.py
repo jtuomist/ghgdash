@@ -20,14 +20,14 @@ ALL_FUEL_PRODUCTION_TOTAL_COL = 'Kaukolämmön ja yhteistuotantosähkön tuotant
 
 @calcfunc(
     variables=dict(
-        bio_is_emissionless='bio_is_emissionless',
+        bio_emission_factor='bio_emission_factor',
     ),
     datasets=dict(
         fuel_classification='jyrjola/statfi/fuel_classification',
     )
 )
 def calculate_district_heating_unit_emissions(fuel_use_df, production_df, variables, datasets):
-    emissionless_bio = variables['bio_is_emissionless']
+    bio_emission_factor = variables['bio_emission_factor'] / 100
 
     fuel_classification = datasets['fuel_classification']
     fuel_co2 = fuel_classification[['code', 'co2e_emission_factor', 'is_bio']].set_index('code')
@@ -40,8 +40,7 @@ def calculate_district_heating_unit_emissions(fuel_use_df, production_df, variab
     # print(df.loc[df.index == 2017])
     # print(df.loc[df.index == 2018])
 
-    if emissionless_bio:
-        df.loc[df.is_bio == True, 'Emissions'] = 0  # noqa
+    df.loc[df.is_bio == True, 'Emissions'] *= bio_emission_factor  # noqa
 
     emissions = df.groupby('Year')['Emissions'].sum()
     emissions.name = 'Emissions'
@@ -150,9 +149,12 @@ def generate_fuel_use_forecast(fuel_df, production_forecast, target_year, target
     last_fuel_ratios = (fuels / all_fuels_total).to_dict()
 
     fuel_ratio_sum = sum([val for key, val in target_ratios.items() if key in last_fuel_ratios])
-    target_fuel_ratios = {
-        fuel: share / fuel_ratio_sum for fuel, share in target_ratios.items() if fuel in last_fuel_ratios
-    }
+    if fuel_ratio_sum:
+        target_fuel_ratios = {
+            fuel: share / fuel_ratio_sum for fuel, share in target_ratios.items() if fuel in last_fuel_ratios
+        }
+    else:
+        target_fuel_ratios = {fuel: 0 for fuel in target_ratios.keys()}
     for key in last_fuel_ratios.keys():
         if key not in target_fuel_ratios:
             target_fuel_ratios[key] = 0
