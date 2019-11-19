@@ -48,8 +48,8 @@ VARIABLES = {
     },
     'district_heating_target_demand_change': 0,
 
-    'district_heating_existing_building_efficiency_change': 1.0,  # Percent per year
-    'district_heating_new_building_efficiency_change': 1.0,  # Percent per year
+    'district_heating_existing_building_efficiency_change': -3.5,  # Percent per year
+    'district_heating_new_building_efficiency_change': -3.5,  # Percent per year
 
     'electricity_production_emissions_correction': 0,
     'electricity_consumption_forecast_adjustment': 0,  # Percent in target year

@@ -15,7 +15,7 @@ from calc.district_heating_consumption import (
     generate_heat_consumption_forecast, generate_heat_use_per_net_area_forecast_existing_buildings,
     generate_heat_use_per_net_area_forecast_new_buildings
 )
-from variables import set_variable
+from variables import set_variable, get_variable
 from utils.graphs import make_layout
 from . import page_callback, Page
 
@@ -196,11 +196,11 @@ page_content = html.Div([
             html.Div(dcc.Slider(
                 id='district-heating-existing-building-unit-heat-factor-slider',
                 vertical=True,
-                min=-40,
+                min=-60,
                 max=20,
                 step=1,
-                value=0,
-                marks={x: '%.1f %%' % (x / 10) for x in range(-40, 20 + 1, 5)},
+                value=get_variable('district_heating_existing_building_efficiency_change') * 10,
+                marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 10)},
                 className='mb-4'
             ), className='slider-card__slider'),
         ], className="slider-card__content")), className="mb-4"), md=6),
@@ -209,11 +209,11 @@ page_content = html.Div([
             html.Div(dcc.Slider(
                 id='district-heating-new-building-unit-heat-factor-slider',
                 vertical=True,
-                min=-40,
+                min=-60,
                 max=20,
                 step=1,
-                value=0,
-                marks={x: '%.1f %%' % (x / 10) for x in range(-40, 20 + 1, 5)},
+                value=get_variable('district_heating_new_building_efficiency_change') * 10,
+                marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 5)},
                 className='mb-4'
             ), className='slider-card__slider'),
         ], className="slider-card__content")), className="mb-4"), md=6),
