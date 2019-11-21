@@ -4,7 +4,6 @@
 #
 #    pip-compile -U
 #
--e git+https://github.com/hgrecco/pint-pandas#egg=pint-pandas
 appdirs==1.4.3            # via quilt
 babel==2.7.0              # via flask-babel
 certifi==2019.9.11        # via requests

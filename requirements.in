@@ -1,6 +1,5 @@
 pandas
 scipy
--e git+https://github.com/hgrecco/pint-pandas#egg=pint-pandas
 quilt
 dash
 dash-html-components
