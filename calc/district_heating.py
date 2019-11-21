@@ -1,11 +1,12 @@
 import math
 import pandas as pd
 import scipy.stats
-import pintpandas  # noqa
 
 from . import calcfunc
 from .electricity import generate_electricity_emission_factor_forecast
 from .district_heating_consumption import generate_heat_consumption_forecast
+
+from common.units import convert_units
 
 
 HEAT_PUMP_COL = 'Lämmön talteenotto tai lämpöpumpun tuotanto'
@@ -32,9 +33,9 @@ def calculate_district_heating_unit_emissions(fuel_use_df, production_df, variab
     fuel_classification = datasets['fuel_classification']
     fuel_co2 = fuel_classification[['code', 'co2e_emission_factor', 'is_bio']].set_index('code')
     df = fuel_use_df.merge(fuel_co2, how='left', left_on='StatfiFuelCode', right_index=True)
-    df.co2e_emission_factor = df.co2e_emission_factor.astype('pint[t/TJ]')
-    df.Value = df.Value.astype('pint[GWh]')
-    df['Emissions'] = (df.Value * df.co2e_emission_factor).pint.to('tonne').pint.m
+    # df.co2e_emission_factor is in t/TJ
+    energy_tj = convert_units(df.Value, 'GWh', 'TJ')
+    df['Emissions'] = (energy_tj * df.co2e_emission_factor)  # tonnes (CO2e)
 
     # df = production_df
     # print(df.loc[df.index == 2017])

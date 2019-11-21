@@ -1,5 +1,9 @@
+import flask
+from flask import session
+
+
 # Variables
-VARIABLES = {
+VARIABLE_DEFAULTS = {
     'target_year': 2035,
     'population_forecast_correction': 0,  # Percent in target year
     'ghg_reductions_reference_year': 1990,
@@ -57,10 +61,19 @@ VARIABLES = {
 
 
 def set_variable(var_name, value):
-    assert var_name in VARIABLES
-    assert isinstance(value, type(VARIABLES[var_name]))
-    VARIABLES[var_name] = value
+    assert var_name in VARIABLE_DEFAULTS
+    assert isinstance(value, type(VARIABLE_DEFAULTS[var_name]))
+
+    if value == VARIABLE_DEFAULTS[var_name]:
+        if var_name in session:
+            del session[var_name]
+        return
+
+    session[var_name] = value
 
 
 def get_variable(var_name):
-    return VARIABLES[var_name]
+    if flask.has_request_context():
+        if var_name in session:
+            return session[var_name]
+    return VARIABLE_DEFAULTS[var_name]

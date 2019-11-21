@@ -11,6 +11,7 @@ from dash.dependencies import Input, Output
 from variables import get_variable, set_variable
 from utils.quilt import load_datasets
 from utils.colors import GHG_MAIN_SECTOR_COLORS
+from utils.graphs import make_layout
 from . import page_callback, Page
 
 
@@ -102,15 +103,9 @@ def generate_ghg_emission_graph(df):
         showlegend=False,
     ) for sector in data_columns]
 
-    layout = go.Layout(
+    layout = make_layout(
         yaxis=dict(
-            hoverformat='.3r',
-            separatethousands=True,
             title='KHK-päästöt (kt CO₂-ekv.)'
-        ),
-        margin=go.layout.Margin(
-            t=0,
-            r=0,
         ),
         legend=dict(
             x=0.7,
@@ -208,7 +203,7 @@ def get_ghg_emissions_forecast():
     df.dropna(inplace=True)
     df.loc[df.index <= last_historical_year, 'Forecast'] = False
     df.loc[df.index > last_historical_year, 'Forecast'] = True
-    return df
+    return df.copy()
 
 
 def prepare_input_datasets():
@@ -346,10 +341,8 @@ def draw_emission_graph(df):
         showlegend=False,
     )
 
-    layout = go.Layout(
+    layout = make_layout(
         yaxis=dict(
-            hoverformat='.3r',
-            separatethousands=True,
             title='kt (CO₂-ekv.)',
             rangemode='tozero',
         ),
@@ -381,8 +374,8 @@ def render_page():
 
         cols.append(dbc.Col([
             dbc.Card(dbc.CardBody(
-            dcc.Graph(figure=draw_emission_graph(sec_df))
-        ), className="mb-5")
+                dcc.Graph(figure=draw_emission_graph(sec_df))
+            ), className="mb-5")
         ], md=6))
 
     content['emission-sectors-graphs'].children = [

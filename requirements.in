@@ -14,3 +14,6 @@ Flask-Babel
 gunicorn
 ring
 matplotlib
+python-dotenv
+pylibmc
+pint

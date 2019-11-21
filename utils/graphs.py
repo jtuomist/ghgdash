@@ -42,6 +42,8 @@ def make_layout(**kwargs):
                 family='HelsinkiGrotesk, Arial',
                 size=14,
             ),
+            gridwidth=1,
+            gridcolor='#ccc',
         ),
         xaxis=dict(
             showgrid=False,
@@ -52,13 +54,17 @@ def make_layout(**kwargs):
                 family='HelsinkiGrotesk, Arial',
                 size=14,
             ),
+            gridwidth=1,
+            gridcolor='#ccc',
         ),
-        showlegend=False,
         font=dict(
             family='HelsinkiGrotesk, Open Sans, Arial'
         ),
         separators=', ',
+        plot_bgcolor='#fff',
     )
+    if 'legend' not in kwargs:
+        params['showlegend'] = False
 
     deepupdate(params, kwargs)
 
