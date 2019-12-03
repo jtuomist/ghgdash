@@ -16,7 +16,7 @@ from pages.emissions import page as emissions_page
 from pages.components import page as components_page
 from pages.empty import page as empty_page
 from pages.electricity import page as electricity_page
-from pages.hel_buildings import page as hel_buildings_page
+# from pages.hel_buildings import page as hel_buildings_page
 from pages.custom_settings import page as custom_settings_page
 
 
@@ -92,7 +92,7 @@ routes = OrderedDict([
     ('vaesto', population_page),
     ('rakennukset', buildings_page),
     ('kaukolammon-tuotanto', district_heating_page),
-    ('helsingin-rakennukset', hel_buildings_page),
+    # ('helsingin-rakennukset', hel_buildings_page),
     ('omat-asetukset', custom_settings_page),
     ('empty', empty_page),
     ('electricity', electricity_page),
