@@ -189,8 +189,9 @@ def draw_district_heat_consumption_emissions(df):
     return fig
 
 
-page_content = html.Div([
-    dbc.Row([
+def generate_page():
+    rows = []
+    rows.append(dbc.Row([
         dbc.Col(dbc.Card(dbc.CardBody(html.Div([
             html.Div(dcc.Graph(id='district-heating-existing-building-unit-heat-factor'), className='slider-card__graph'),
             html.Div(dcc.Slider(
@@ -217,20 +218,20 @@ page_content = html.Div([
                 className='mb-4'
             ), className='slider-card__slider'),
         ], className="slider-card__content")), className="mb-4"), md=6),
-    ]),
-    dbc.Row([
+    ]))
+    rows.append(dbc.Row([
         dbc.Col(dbc.Card(dbc.CardBody([
             dcc.Graph(id='district-heating-consumption'),
             html.Div(id='district-heating-unit-emissions-card'),
         ]), className="mb-4"), md=6, className='offset-md-3'),
-    ]),
-    dbc.Row([
+    ]))
+    rows.append(dbc.Row([
         dbc.Col(dbc.Card(dbc.CardBody([
             dcc.Graph(id='district-heating-consumption-emissions'),
         ]), className="mb-4"), md=8, className='offset-md-2'),
-    ], className="page-content-wrapper"),
-    html.Div(id='district-heating-sticky-page-summary-container'),
-])
+    ], className="page-content-wrapper"))
+    rows.append(html.Div(id='district-heating-sticky-page-summary-container'))
+    return html.Div(rows)
 
 
 @page_callback(
@@ -297,4 +298,4 @@ def district_heating_consumption_callback(existing_building_perc, new_building_p
     return [fig1, fig2, fig3, fig4, unit_emissions_card, sticky]
 
 
-page = Page('Kaukolämmön kulutus', page_content, [district_heating_consumption_callback])
+page = Page('Kaukolämmön kulutus', generate_page, [district_heating_consumption_callback])
