@@ -14,6 +14,7 @@ from pages.population import page as population_page
 from pages.buildings import page as buildings_page
 from pages.emissions import page as emissions_page
 from pages.components import page as components_page
+from pages.solar_power import page as solar_power_page
 from pages.empty import page as empty_page
 from pages.electricity import page as electricity_page
 # from pages.hel_buildings import page as hel_buildings_page
@@ -22,6 +23,7 @@ from pages.custom_settings import page as custom_settings_page
 
 mock_sub_routes = OrderedDict([
     ('Kaukolämpö', 'kaukolammon-kulutus'),
+    ('Aurinkosähkö', 'aurinko-sahko'),
     ('Sähkölämmitys', 'empty'),
     ('Öljylämpö', 'empty'),
     ('Maalämpö', 'empty'),
@@ -88,6 +90,7 @@ def generate_page(left_nav_children, page_content_children):
 
 routes = OrderedDict([
     ('', emissions_page),
+    ('aurinko-sahko', solar_power_page),
     ('kaukolammon-kulutus', district_heating_consumption_page),
     ('vaesto', population_page),
     ('rakennukset', buildings_page),
