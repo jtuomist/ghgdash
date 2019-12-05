@@ -1,3 +1,4 @@
+from dash_archer import DashArcherContainer, DashArcherElement
 import dash_table
 import dash_daq as daq
 import dash_core_components as dcc
@@ -17,6 +18,7 @@ from calc.district_heating_consumption import (
 )
 from variables import set_variable, get_variable
 from utils.graphs import make_layout
+from utils.colors import ARCHER_STROKE
 from . import page_callback, Page
 
 
@@ -191,8 +193,9 @@ def draw_district_heat_consumption_emissions(df):
 
 def generate_page():
     rows = []
-    rows.append(dbc.Row([
-        dbc.Col(dbc.Card(dbc.CardBody(html.Div([
+
+    existing_card = DashArcherElement([
+        dbc.Card(dbc.CardBody(html.Div([
             html.Div(dcc.Graph(id='district-heating-existing-building-unit-heat-factor'), className='slider-card__graph'),
             html.Div(dcc.Slider(
                 id='district-heating-existing-building-unit-heat-factor-slider',
@@ -204,8 +207,15 @@ def generate_page():
                 marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 10)},
                 className='mb-4'
             ), className='slider-card__slider'),
-        ], className="slider-card__content")), className="mb-4"), md=6),
-        dbc.Col(dbc.Card(dbc.CardBody(html.Div([
+        ], className="slider-card__content")), className="mb-4 card-border-bottom")
+    ], id='district-heating-existing-building-unit-heat-factor-elem', relations=[{
+        'targetId': 'district-heating-consumption-elem',
+        'targetAnchor': 'top',
+        'sourceAnchor': 'bottom',
+    }])
+
+    new_card = DashArcherElement([
+        dbc.Card(dbc.CardBody(html.Div([
             html.Div(dcc.Graph(id='district-heating-new-building-unit-heat-factor'), className='slider-card__graph'),
             html.Div(dcc.Slider(
                 id='district-heating-new-building-unit-heat-factor-slider',
@@ -217,13 +227,27 @@ def generate_page():
                 marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 5)},
                 className='mb-4'
             ), className='slider-card__slider'),
-        ], className="slider-card__content")), className="mb-4"), md=6),
-    ]))
+        ], className="slider-card__content")), className="mb-4 card-border-bottom")
+    ], id='district-heating-new-building-unit-heat-factor-elem', relations=[{
+        'targetId': 'district-heating-consumption-elem',
+        'targetAnchor': 'top',
+        'sourceAnchor': 'bottom',
+    }])
+
     rows.append(dbc.Row([
-        dbc.Col(dbc.Card(dbc.CardBody([
+        dbc.Col(existing_card, md=6),
+        dbc.Col(new_card, md=6),
+    ]))
+
+    consumption_card = DashArcherElement([
+        dbc.Card(dbc.CardBody([
             dcc.Graph(id='district-heating-consumption'),
             html.Div(id='district-heating-unit-emissions-card'),
-        ]), className="mb-4"), md=6, className='offset-md-3'),
+        ]), className="mb-4 card-district-heating-consumption card-border-top")
+    ], id='district-heating-consumption-elem')
+
+    rows.append(dbc.Row([
+        dbc.Col(consumption_card, md=6, className='offset-md-3'),
     ]))
     rows.append(dbc.Row([
         dbc.Col(dbc.Card(dbc.CardBody([
@@ -231,8 +255,14 @@ def generate_page():
         ]), className="mb-4"), md=8, className='offset-md-2'),
     ], className="page-content-wrapper"))
     rows.append(html.Div(id='district-heating-sticky-page-summary-container'))
-    return html.Div(rows)
 
+    return DashArcherContainer(
+        [html.Div(rows)],
+        strokeColor=ARCHER_STROKE['default']['color'],
+        strokeWidth=ARCHER_STROKE['default']['width'],
+        arrowLength=0.001,
+        arrowThickness=0.001,
+    )
 
 @page_callback(
     [
