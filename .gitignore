@@ -1,4 +1,5 @@
 *~
+*.swp
 __pycache__/
 
 /node_modules/
@@ -13,3 +14,6 @@ __pycache__/
 /yarn-debug.log*
 /yarn-error.log*
 /.env
+
+# python virtual environment
+venv/
