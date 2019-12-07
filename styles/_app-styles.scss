@@ -1,3 +1,5 @@
+$archer-width: 8px;
+$archer-color: #a1a1a1;
 
 body, html {
   background-color: #f2f2f2;
@@ -89,4 +91,13 @@ body, html {
 
 .dash-debug-menu, ._dash-undo-redo {
   display: none !important;
+}
+
+// Cards
+
+.card-border-top    { border-top:    $archer-width solid $archer-color; }
+.card-border-bottom { border-bottom: $archer-width solid $archer-color; }
+
+.card-district-heating-consumption {
+  margin-top: 125px;
 }

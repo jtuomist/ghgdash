@@ -1,4 +1,9 @@
-
+ARCHER_STROKE = {
+    'default': {
+        'color': '#A1A1A1',
+        'width': 8,
+    },
+}
 
 GHG_MAIN_SECTOR_COLORS = {
     'Lämmitys': '#FD4F00',
