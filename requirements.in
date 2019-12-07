@@ -16,3 +16,4 @@ matplotlib
 python-dotenv
 pylibmc
 pint
+dash-archer
