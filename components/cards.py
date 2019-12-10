@@ -8,7 +8,10 @@ from utils import deepupdate
 def make_graph_card(card_id: str, graph: dict = None, slider: dict = None, borders: dict = None) -> dbc.Card:
     els = []
     graph_attrs = {
-        'config': dict(displayModeBar=False)
+        'config': dict(
+            displayModeBar=False,
+            responsive=True,
+        )
     }
     if graph is not None:
         deepupdate(graph_attrs, graph)

@@ -16,13 +16,13 @@ from variables import set_variable, get_variable
 from components import StickyBar
 from components.graphs import make_layout
 from components.cards import make_graph_card
-from utils.colors import ARCHER_STROKE
+from utils.colors import ARCHER_STROKE, GHG_MAIN_SECTOR_COLORS
 from .base import Page
 
 
 DISTRICT_HEATING_GOAL = 251
 
-EXISTING_BUILDINGS_HIST_COLOR = '#ff4706'
+EXISTING_BUILDINGS_HIST_COLOR = GHG_MAIN_SECTOR_COLORS['BuildingHeating']
 EXISTING_BUILDINGS_FORECAST_COLOR = '#ff6c38'
 NEW_BUILDINGS_COLOR = '#ffb59b'
 
@@ -154,26 +154,32 @@ def draw_heat_consumption():
 
 
 def draw_district_heat_consumption_emissions(df):
-    hist_df = df.query('~Forecast')
+    hist_df = df[~df.Forecast]
+    last_hist_year = hist_df.index.max()
     hist = go.Scatter(
         x=hist_df.index,
         y=hist_df['District heat consumption emissions'],
         mode='lines',
         name='Päästöt',
         line=dict(
-            color='#9fc9eb',
+            color=GHG_MAIN_SECTOR_COLORS['BuildingHeating'],
+            shape='spline',
+            smoothing=1,
         )
     )
 
-    forecast_df = df.query('Forecast')
+    forecast_df = df.loc[df.Forecast | (df.index == last_hist_year)]
     forecast = go.Scatter(
         x=forecast_df.index,
         y=forecast_df['District heat consumption emissions'],
         mode='lines',
+        hovertemplate='%{x}: %{y:.0f}',
         name='Päästöt (enn.)',
         line=dict(
-            color='#9fc9eb',
-            dash='dash'
+            color=GHG_MAIN_SECTOR_COLORS['BuildingHeating'],
+            dash='dash',
+            shape='spline',
+            smoothing=1,
         )
     )
 
@@ -188,6 +194,7 @@ def draw_district_heat_consumption_emissions(df):
         x=goal_df.index,
         y=goal_df,
         mode='lines',
+        hovertemplate='%{x}: %{y:.0f}',
         name='Tavoite',
         line=dict(
             color='grey',
@@ -267,7 +274,7 @@ def generate_page():
                 max=20,
                 step=5,
                 value=get_variable('district_heating_new_building_efficiency_change') * 10,
-                marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 5)},
+                marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 10)},
             ),
             borders=dict(bottom=True),
         )

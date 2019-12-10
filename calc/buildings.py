@@ -67,7 +67,7 @@ def generate_building_floor_area_forecast(variables):
     building_forecast.iloc[0] += building_total.iloc[-1]
     df = pd.concat([building_total, building_forecast.cumsum()], sort=True)
 
-    df.index.name = 'Vuosi'
+    df.index.name = 'Year'
     df['Forecast'] = False
     df.loc[df.index >= forecast_years[0], 'Forecast'] = True
 

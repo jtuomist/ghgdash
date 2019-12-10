@@ -37,7 +37,7 @@ class StickyBar:
                 x=[emissions],
                 name=name,
                 orientation='h',
-                hovertemplate='%{x: .0f}',
+                hovertemplate='%{label}: %{x: .0f}',
                 marker=dict(
                     color=GHG_MAIN_SECTOR_COLORS[sector_name]
                 )
