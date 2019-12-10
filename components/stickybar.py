@@ -7,6 +7,7 @@ import plotly.graph_objs as go
 from variables import get_variable
 from calc.emissions import generate_emissions_forecast, SECTORS
 from utils.colors import GHG_MAIN_SECTOR_COLORS
+from pages.base import Page
 
 
 @dataclass
@@ -15,6 +16,7 @@ class StickyBar:
     value: float
     goal: float
     unit: str
+    current_page: Page = None
 
     def render_emissions_bar(self):
         df = generate_emissions_forecast()
@@ -25,9 +27,11 @@ class StickyBar:
 
         reductions = (start_s - target_s).sort_values(ascending=False)
         traces = []
+        page = self.current_page
         for sector_name, emissions in reductions.iteritems():
-            name = SECTORS[sector_name]
-            if sector_name == 'BuildingHeating':
+            sector_metadata = SECTORS[sector_name]
+            if page is not None and page.emission_sector is not None and \
+                    page.emission_sector[0] == sector_name:
                 active = True
             else:
                 active = False
@@ -35,7 +39,7 @@ class StickyBar:
             bar = dict(
                 type='bar',
                 x=[emissions],
-                name=name,
+                name=sector_metadata['name'],
                 orientation='h',
                 hovertemplate='%{x: .0f}',
                 marker=dict(
@@ -44,8 +48,8 @@ class StickyBar:
             )
             if active:
                 bar['marker'].update(dict(
-                    line_color='#000',
-                    line_width=2,
+                    line_color='#888',
+                    line_width=4,
                 ))
             traces.append(bar)
 

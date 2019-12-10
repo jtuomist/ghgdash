@@ -68,7 +68,8 @@ def render_page():
 
 
 page = Page(
-    id='electricity-consumption', name='Kulutussähkö', content=render_page, path='/kulutussahko'
+    id='electricity-consumption', name='Kulutussähkö', content=render_page, path='/kulutussahko',
+    emission_sector=('ElectricityConsumption', '')
 )
 
 

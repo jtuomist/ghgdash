@@ -38,7 +38,7 @@ def generate_solar_power_forecast(datasets, variables):
 
     df['Forecast'] = False
     df = df.reindex(pd.Index(range(START_YEAR, target_year + 1)))
-    df.index.name = 'Vuosi'
+    df.index.name = 'Year'
     df.Forecast = df.Forecast.fillna(True)
 
     df.loc[target_year, 'SolarPowerExisting'] = max_potential
@@ -61,7 +61,7 @@ def generate_solar_power_forecast(datasets, variables):
         new_df[col] *= kwh_per_pa / pv_kwh_wp / 1000000 #kWh -> MWp
 
     new_df['SolarPowerNew'] = new_df.sum(axis=1).cumsum() * variables['solar_power_new_buildings_percentage']/100
-    df = pd.merge(df, new_df['SolarPowerNew'], on='Vuosi', how="left")
+    df = pd.merge(df, new_df['SolarPowerNew'], on='Year', how="left")
     df.SolarPowerNew = df.SolarPowerNew.fillna(0.0)
 
     # Sum production

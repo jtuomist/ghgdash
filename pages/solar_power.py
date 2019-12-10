@@ -197,4 +197,4 @@ def solar_power_callback(existing_building_perc, new_building_perc):
         ], className="page-summary__totals"),
     ], className="page-summary fixed-bottom")]
 
-    return fig_old, fig_new, fig_tot, city_gwp, sticky
+    return [fig_old, fig_new, fig_tot, city_gwp, sticky]

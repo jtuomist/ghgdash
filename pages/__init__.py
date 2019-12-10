@@ -28,8 +28,8 @@ def get_page_for_emission_sector(sector1, sector2):
     if not sector2:
         sector2 = None
     for page in all_pages.values():
-        if not page.emission_sectors:
+        if not page.emission_sector:
             continue
-        if (sector1, sector2) == tuple(page.emission_sectors):
+        if (sector1, sector2) == tuple(page.emission_sector):
             return page
     return None

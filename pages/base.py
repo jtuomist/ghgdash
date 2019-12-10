@@ -8,13 +8,13 @@ from flask import session
 
 
 class Page:
-    def __init__(self, id, name, content, path=None, emission_sectors=None):
+    def __init__(self, id, name, content, path=None, emission_sector=None):
         self.id = id
         self.name = name
         self.content = content
         self.callbacks = []
         self.path = path
-        self.emission_sectors = emission_sectors
+        self.emission_sector = emission_sector
 
     def __str__(self):
         return self.name
@@ -74,7 +74,7 @@ class Page:
             self.make_navbar(),
             dbc.Container(
                 dbc.Row([
-                    dbc.Col(id=self.make_id('left-nav'), md=2, children=make_emission_nav()),
+                    dbc.Col(id=self.make_id('left-nav'), md=2, children=make_emission_nav(self)),
                     dbc.Col(md=10, children=page_content)
                 ]),
                 className="app-content",
@@ -94,7 +94,7 @@ class Page:
             def call_func(*args):
                 ret = func(*args)
                 assert isinstance(ret, list)
-                return ret + [make_emission_nav()]
+                return ret + [make_emission_nav(self)]
 
             self.callbacks.append(call_func)
 

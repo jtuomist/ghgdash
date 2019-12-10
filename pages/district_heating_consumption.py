@@ -13,7 +13,7 @@ from calc.district_heating_consumption import (
     generate_heat_use_per_net_area_forecast_new_buildings
 )
 from variables import set_variable, get_variable
-from components import StickyBar
+from components.stickybar import StickyBar
 from components.graphs import make_layout
 from components.cards import make_graph_card
 from utils.colors import ARCHER_STROKE, GHG_MAIN_SECTOR_COLORS
@@ -241,7 +241,8 @@ def make_bottom_bar(df):
         label="Kaukolämmön kulutuksen päästöt yhteensä",
         value=last_emissions,
         goal=target_emissions,
-        unit='kt (CO₂e.) / a'
+        unit='kt (CO₂e.) / a',
+        current_page=page
     )
     return bar.render()
 
@@ -328,7 +329,7 @@ page = Page(
     name='Kaukolämmön kulutus',
     content=generate_page,
     path='/kaukolampo',
-    emission_sectors=['BuildingHeating', 'DistrictHeat']
+    emission_sector=('BuildingHeating', 'DistrictHeat')
 )
 
 
