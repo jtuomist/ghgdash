@@ -240,3 +240,17 @@ def calc_district_heating_unit_emissions_forecast(variables, datasets):
     df['Lämpöpumput'] = production_out['Production with heat pumps']
 
     return production_out, df
+
+
+@calcfunc(
+    funcs=[calc_district_heating_unit_emissions_forecast]
+)
+def predict_district_heating_emissions():
+    production_df, fuel_use_df = calc_district_heating_unit_emissions_forecast()
+    return production_df
+
+
+if __name__ == '__main__':
+    df1, df2 = calc_district_heating_unit_emissions_forecast()
+    print(df1)
+    print(df2)

@@ -1,4 +1,3 @@
-import time
 import pandas as pd
 import scipy.stats
 
@@ -22,35 +21,28 @@ def generate_forecast_series(historical_series, year_until):
     )
 )
 def prepare_historical_building_area_dataset(datasets):
-    start = time.perf_counter()
-
-    print("%f ms ph" % ((time.perf_counter() - start) * 1000.0))
     df = datasets['buildings']
-    df = df[df.Alue == '091 Helsinki'].drop(columns='Alue')
-    print("%f ms ph" % ((time.perf_counter() - start) * 1000.0))
+    df = df.loc[df.Alue == '091 Helsinki'].drop(columns='Alue')
+    df = df.loc[df.Valmistumisvuosi != 'Yhteensä'].copy()
     df = df.rename(columns={'Käyttötarkoitus ja kerrosluku': 'Käyttötarkoitus'})
     df = df[~df['Käyttötarkoitus'].str.contains('yhteensä')]
-    print("%f ms ph" % ((time.perf_counter() - start) * 1000.0))
     df = df[df['Käyttötarkoitus'] != 'Kaikki rakennukset']
-    df = df[df.Valmistumisvuosi != 'Yhteensä']
-    print("%f ms ph" % ((time.perf_counter() - start) * 1000.0))
 
     return df
 
 
 @calcfunc(
-    datasets=dict(
-    ),
     variables=dict(
         target_year='target_year',
     ),
     funcs=[prepare_historical_building_area_dataset, get_adjusted_population_forecast]
 )
-def generate_building_floor_area_forecast(datasets, variables):
+def generate_building_floor_area_forecast(variables):
     target_year = variables['target_year']
 
     df = prepare_historical_building_area_dataset()
-    building_total = df.query('Yksikkö == "Kerrosala"').groupby(['Käyttötarkoitus', 'Vuosi']).sum()\
+    df = df.loc[df.Yksikkö == 'Kerrosala']
+    building_total = df.groupby(['Käyttötarkoitus', 'Vuosi']).sum()\
         .unstack('Käyttötarkoitus')
     building_total.index = building_total.index.astype(int)
     building_total.columns = building_total.columns.get_level_values(1)

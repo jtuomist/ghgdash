@@ -6,22 +6,13 @@ from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 
-from . import Page, page_callback
+from .base import Page
 
 
 def generate_custom_settings_list():
     customized_variables = {key: val for key, val in session.items() if not key.startswith('_')}
     var_str = json.dumps(customized_variables, ensure_ascii=False, indent=4)
     return html.Pre(var_str)
-
-
-@page_callback(
-    [Output('custom-settings-list', 'children')],
-    [Input('custom-settings-clear-button', 'n_clicks')]
-)
-def custom_settings_clear(n_clicks):
-    session.clear()
-    return [generate_custom_settings_list()]
 
 
 def custom_settings_content():
@@ -34,4 +25,13 @@ def custom_settings_content():
     return html.Div(out)
 
 
-page = Page(_('Custom settings'), custom_settings_content, [custom_settings_clear])
+page = Page(id='custom-settings', name='Omat asetukset', content=custom_settings_content, path='/omat-asetukset')
+
+
+@page.callback(
+    outputs=[Output('custom-settings-list', 'children')],
+    inputs=[Input('custom-settings-clear-button', 'n_clicks')]
+)
+def custom_settings_clear(n_clicks):
+    session.clear()
+    return [generate_custom_settings_list()]

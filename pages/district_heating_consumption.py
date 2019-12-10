@@ -1,13 +1,9 @@
 from dash_archer import DashArcherContainer, DashArcherElement
-import dash_table
-import dash_daq as daq
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
-from dash_table.Format import Format, Scheme
 from dash.dependencies import Input, Output
 from babel.numbers import format_decimal
 
@@ -17,23 +13,32 @@ from calc.district_heating_consumption import (
     generate_heat_use_per_net_area_forecast_new_buildings
 )
 from variables import set_variable, get_variable
-from utils.graphs import make_layout
+from components import StickyBar
+from components.graphs import make_layout
+from components.cards import make_graph_card
 from utils.colors import ARCHER_STROKE
-from . import page_callback, Page
+from .base import Page
 
 
 DISTRICT_HEATING_GOAL = 251
 
+EXISTING_BUILDINGS_HIST_COLOR = '#ff4706'
+EXISTING_BUILDINGS_FORECAST_COLOR = '#ff6c38'
+NEW_BUILDINGS_COLOR = '#ffb59b'
 
-def draw_existing_building_unit_heat_factor_graph(df):
+
+def draw_existing_building_unit_heat_factor_graph():
+    df = generate_heat_use_per_net_area_forecast_existing_buildings()
+
     hist_df = df.query('~Forecast')
     hist = go.Scatter(
         x=hist_df.index,
         y=hist_df.HeatUsePerNetArea,
+        hovertemplate='%{x}: %{y:.0f}',
         mode='lines',
         name='Ominaislämmönkulutus',
         line=dict(
-            color='#9fc9eb',
+            color=EXISTING_BUILDINGS_HIST_COLOR,
         )
     )
 
@@ -41,10 +46,11 @@ def draw_existing_building_unit_heat_factor_graph(df):
     forecast = go.Scatter(
         x=forecast_df.index,
         y=forecast_df.HeatUsePerNetArea,
+        hovertemplate='%{x}: %{y:.0f}',
         mode='lines',
         name='Ominaislämmönkulutus (enn.)',
         line=dict(
-            color='#9fc9eb',
+            color=EXISTING_BUILDINGS_FORECAST_COLOR,
             dash='dash'
         )
     )
@@ -60,16 +66,19 @@ def draw_existing_building_unit_heat_factor_graph(df):
     return fig
 
 
-def draw_new_building_unit_heat_factor_graph(df):
+def draw_new_building_unit_heat_factor_graph():
+    df = generate_heat_use_per_net_area_forecast_new_buildings()
+
     # forecast_df = df.query('Forecast')
     forecast_df = df
     forecast = go.Scatter(
         x=forecast_df.index,
         y=forecast_df,
+        hovertemplate='%{x}: %{y:.0f}',
         mode='lines',
         name='Ominaislämmönkulutus (enn.)',
         line=dict(
-            color='#9fc9eb',
+            color=NEW_BUILDINGS_COLOR,
             dash='dash'
         )
     )
@@ -84,57 +93,63 @@ def draw_new_building_unit_heat_factor_graph(df):
     return fig
 
 
-def draw_heat_consumption(df):
-    t1 = go.Scatter(
-        x=df.index,
-        y=df.ExistingBuildingHeatUse,
+def draw_heat_consumption():
+    df = generate_heat_consumption_forecast()
+
+    hist_df = df[~df.Forecast]
+    t1h = go.Scatter(
+        x=hist_df.index,
+        y=hist_df.ExistingBuildingHeatUse,
+        mode='none',
+        fill='tozeroy',
+        name='Vanhat rakennukset',
+        hovertemplate='%{x}: %{y:.0f}',
+        fillcolor=EXISTING_BUILDINGS_HIST_COLOR,
+        line=dict(
+            color=EXISTING_BUILDINGS_HIST_COLOR,
+            shape='spline',
+        ),
+    )
+
+    forecast_df = df.loc[df.Forecast | (df.index == hist_df.index.max())]
+    t1f = go.Scatter(
+        x=forecast_df.index,
+        y=forecast_df.ExistingBuildingHeatUse,
         mode='none',
         fill='tonexty',
-        name='Vanhat rakennukset',
-        fillcolor='rgb(253, 79, 0)',
+        name='Vanhat rakennukset (enn.)',
+        hovertemplate='%{x}: %{y:.0f}',
+        fillcolor=EXISTING_BUILDINGS_FORECAST_COLOR,
         line=dict(
-            color='rgb(253, 79, 0)',
+            color=EXISTING_BUILDINGS_FORECAST_COLOR,
             shape='spline',
         ),
         stackgroup='one'
     )
-    new_building_heat_use = df[df.Forecast].NewBuildingHeatUse
+
+    new_building_heat_use = forecast_df.NewBuildingHeatUse
     t2 = go.Scatter(
         x=new_building_heat_use.index,
         y=new_building_heat_use,
         mode='none',
         name='Uudet rakennukset',
+        hovertemplate='%{x}: %{y:.0f}',
+        fillcolor=NEW_BUILDINGS_COLOR,
         line=dict(
-            color='red',
+            color=NEW_BUILDINGS_COLOR,
             shape='spline',
             smoothing=1,
         ),
         stackgroup='one'
     )
-    forecast_df = df[df.Forecast]
-    forecast_start_year, forecast_end_year = forecast_df.index.min(), forecast_df.index.max()
     layout = make_layout(
         yaxis=dict(
             title='GWh',
         ),
         title="Kaukolämmön kokonaiskulutus",
-        shapes=[
-            dict(
-                type='rect',
-                x0=forecast_start_year,
-                x1=forecast_end_year,
-                xref='x',
-                y0=0,
-                y1=1,
-                yref='paper',
-                opacity=0.2,
-                fillcolor='white',
-                line=dict(width=0)
-            )
-        ]
     )
 
-    fig = go.Figure(data=[t1, t2], layout=layout)
+    fig = go.Figure(data=[t1h, t1f, t2], layout=layout)
     return fig
 
 
@@ -191,23 +206,53 @@ def draw_district_heat_consumption_emissions(df):
     return fig
 
 
+def make_unit_emissions_card(df):
+    last_emission_factor = df['Emission factor'].iloc[-1]
+    last_year = df.index.max()
+
+    return dbc.Card([
+        html.A(dbc.CardBody([
+            html.H4('Kaukolämmön päästökerroin', className='card-title'),
+            html.Div([
+                html.Span(
+                    '%s g (CO₂e) / kWh' % (format_decimal(last_emission_factor, format='@@@', locale='fi_FI')),
+                    className='summary-card__value'
+                ),
+                html.Span(' (%s)' % last_year, className='summary-card__year')
+            ])
+        ]), href='/kaukolammon-tuotanto')
+    ], className='summary-card')
+
+
+def make_bottom_bar(df):
+    s = df['District heat consumption emissions']
+    last_emissions = s.iloc[-1]
+    target_emissions = DISTRICT_HEATING_GOAL
+
+    bar = StickyBar(
+        label="Kaukolämmön kulutuksen päästöt yhteensä",
+        value=last_emissions,
+        goal=target_emissions,
+        unit='kt (CO₂e.) / a'
+    )
+    return bar.render()
+
+
 def generate_page():
     rows = []
 
     existing_card = DashArcherElement([
-        dbc.Card(dbc.CardBody(html.Div([
-            html.Div(dcc.Graph(id='district-heating-existing-building-unit-heat-factor'), className='slider-card__graph'),
-            html.Div(dcc.Slider(
-                id='district-heating-existing-building-unit-heat-factor-slider',
-                vertical=True,
+        make_graph_card(
+            card_id='district-heating-existing-building-unit-heat-factor',
+            slider=dict(
                 min=-60,
                 max=20,
-                step=1,
+                step=5,
                 value=get_variable('district_heating_existing_building_efficiency_change') * 10,
                 marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 10)},
-                className='mb-4'
-            ), className='slider-card__slider'),
-        ], className="slider-card__content")), className="mb-4 card-border-bottom")
+            ),
+            borders=dict(bottom=True),
+        )
     ], id='district-heating-existing-building-unit-heat-factor-elem', relations=[{
         'targetId': 'district-heating-consumption-elem',
         'targetAnchor': 'top',
@@ -215,19 +260,17 @@ def generate_page():
     }])
 
     new_card = DashArcherElement([
-        dbc.Card(dbc.CardBody(html.Div([
-            html.Div(dcc.Graph(id='district-heating-new-building-unit-heat-factor'), className='slider-card__graph'),
-            html.Div(dcc.Slider(
-                id='district-heating-new-building-unit-heat-factor-slider',
-                vertical=True,
+        make_graph_card(
+            card_id='district-heating-new-building-unit-heat-factor',
+            slider=dict(
                 min=-60,
                 max=20,
-                step=1,
+                step=5,
                 value=get_variable('district_heating_new_building_efficiency_change') * 10,
                 marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 5)},
-                className='mb-4'
-            ), className='slider-card__slider'),
-        ], className="slider-card__content")), className="mb-4 card-border-bottom")
+            ),
+            borders=dict(bottom=True),
+        )
     ], id='district-heating-new-building-unit-heat-factor-elem', relations=[{
         'targetId': 'district-heating-consumption-elem',
         'targetAnchor': 'top',
@@ -241,18 +284,25 @@ def generate_page():
 
     consumption_card = DashArcherElement([
         dbc.Card(dbc.CardBody([
-            dcc.Graph(id='district-heating-consumption'),
+            dcc.Graph(id='district-heating-consumption-graph'),
             html.Div(id='district-heating-unit-emissions-card'),
-        ]), className="mb-4 card-district-heating-consumption card-border-top")
-    ], id='district-heating-consumption-elem')
-
+        ]), className="mb-4 card-border-top card-border-bottom")
+    ], id='district-heating-consumption-elem', relations=[{
+        'sourceAnchor': 'bottom',
+        'targetId': 'district-heating-consumption-emissions-elem',
+        'targetAnchor': 'top',
+    }])
     rows.append(dbc.Row([
         dbc.Col(consumption_card, md=6, className='offset-md-3'),
     ]))
-    rows.append(dbc.Row([
-        dbc.Col(dbc.Card(dbc.CardBody([
+
+    emissions_card = DashArcherElement([
+        dbc.Card(dbc.CardBody([
             dcc.Graph(id='district-heating-consumption-emissions'),
-        ]), className="mb-4"), md=8, className='offset-md-2'),
+        ]), className="mb-4 card-border-top"),
+    ], id='district-heating-consumption-emissions-elem')
+    rows.append(dbc.Row([
+        dbc.Col(md=8, className='offset-md-2', children=emissions_card),
     ], className="page-content-wrapper"))
     rows.append(html.Div(id='district-heating-sticky-page-summary-container'))
 
@@ -264,68 +314,39 @@ def generate_page():
         arrowThickness=0.001,
     )
 
-@page_callback(
-    [
-        Output('district-heating-existing-building-unit-heat-factor', 'figure'),
-        Output('district-heating-new-building-unit-heat-factor', 'figure'),
-        Output('district-heating-consumption', 'figure'),
-        Output('district-heating-consumption-emissions', 'figure'),
-        Output('district-heating-unit-emissions-card', 'children'),
-        Output('district-heating-sticky-page-summary-container', 'children'),
-    ], [
-        Input('district-heating-existing-building-unit-heat-factor-slider', 'value'),
-        Input('district-heating-new-building-unit-heat-factor-slider', 'value'),
-    ]
+
+page = Page(
+    id='district-heating',
+    name='Kaukolämmön kulutus',
+    content=generate_page,
+    path='/kaukolampo',
+    emission_sectors=['BuildingHeating', 'DistrictHeat']
 )
+
+
+@page.callback(inputs=[
+    Input('district-heating-existing-building-unit-heat-factor-slider', 'value'),
+    Input('district-heating-new-building-unit-heat-factor-slider', 'value'),
+], outputs=[
+    Output('district-heating-existing-building-unit-heat-factor-graph', 'figure'),
+    Output('district-heating-new-building-unit-heat-factor-graph', 'figure'),
+    Output('district-heating-consumption-graph', 'figure'),
+    Output('district-heating-unit-emissions-card', 'children'),
+    Output('district-heating-consumption-emissions', 'figure'),
+    Output('district-heating-sticky-page-summary-container', 'children'),
+])
 def district_heating_consumption_callback(existing_building_perc, new_building_perc):
     set_variable('district_heating_existing_building_efficiency_change', existing_building_perc / 10)
     set_variable('district_heating_new_building_efficiency_change', new_building_perc / 10)
 
-    df = generate_heat_use_per_net_area_forecast_existing_buildings()
-    fig1 = draw_existing_building_unit_heat_factor_graph(df)
-
-    df = generate_heat_use_per_net_area_forecast_new_buildings()
-    fig2 = draw_new_building_unit_heat_factor_graph(df)
-
-    df = generate_heat_consumption_forecast()
-    fig3 = draw_heat_consumption(df)
+    fig1 = draw_existing_building_unit_heat_factor_graph()
+    fig2 = draw_new_building_unit_heat_factor_graph()
+    fig3 = draw_heat_consumption()
 
     df1, df2 = calc_district_heating_unit_emissions_forecast()
+    unit_emissions_card = make_unit_emissions_card(df1)
 
     fig4 = draw_district_heat_consumption_emissions(df1)
+    sticky = make_bottom_bar(df1)
 
-    last_emission_factor = df1['Emission factor'].iloc[-1]
-    last_year = df1.index.max()
-    unit_emissions_card = dbc.Card([
-        html.A(dbc.CardBody([
-            html.H4('Kaukolämmön päästökerroin', className='card-title'),
-            html.Div([
-                html.Span(
-                    '%s g (CO₂e) / kWh' % (format_decimal(last_emission_factor, format='@@@', locale='fi_FI')),
-                    className='summary-card__value'
-                ),
-                html.Span(' (%s)' % last_year, className='summary-card__year')
-            ])
-        ]), href='/kaukolammon-tuotanto')
-    ], className='summary-card')
-
-    s = df1['District heat consumption emissions']
-    last_emissions = s.iloc[-1]
-    target_emissions = DISTRICT_HEATING_GOAL
-    if last_emissions <= target_emissions:
-        sticky_class = 'page-summary__total--good'
-    else:
-        sticky_class = 'page-summary__total--bad'
-
-    sticky = [dbc.Alert([
-        html.H6("Kaukolämmön kulutuksen päästöt yhteensä (2035)"),
-        html.Div([
-            html.Div(["%.0f" % last_emissions, html.Span(" kt (CO₂e.) / a", className="unit")], className="page-summary__total " + sticky_class),
-            html.Div(["tavoite %s" % DISTRICT_HEATING_GOAL,html.Span(" kt (CO₂e.) / a", className="unit")], className="page-summary__target")
-        ], className="page-summary__totals"),
-    ], className="page-summary fixed-bottom")]
-
-    return [fig1, fig2, fig3, fig4, unit_emissions_card, sticky]
-
-
-page = Page('Kaukolämmön kulutus', generate_page, [district_heating_consumption_callback])
+    return [fig1, fig2, fig3, unit_emissions_card, fig4, sticky]

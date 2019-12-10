@@ -6,7 +6,7 @@ from dash.dependencies import Input, Output
 
 from variables import set_variable
 from calc.electricity import generate_electricity_consumption_forecast
-from . import page_callback, Page
+from .base import Page
 from flask_babel import gettext as _
 
 
@@ -71,15 +71,18 @@ electricity_page_content = dbc.Row([
 ])
 
 
-@page_callback(
-    Output('electricity-consumption-graph', 'figure'),
-    [Input('electricity-consumption-slider', 'value')])
+page = Page(
+    id='electricity-consumption', name='Kulutussähkö', content=electricity_page_content, path='/kulutussahko'
+)
+
+
+@page.callback(
+    outputs=[Output('electricity-consumption-graph', 'figure')],
+    inputs=[Input('electricity-consumption-slider', 'value')]
+)
 def electricity_consumption_callback(value):
     set_variable('electricity_consumption_forecast_adjustment', value)
     df = generate_electricity_consumption_forecast()
     fig = generate_electricity_consumption_forecast_graph(df)
 
-    return fig
-
-
-page = Page(_('Electricity'), electricity_page_content, [electricity_consumption_callback])
+    return [fig]

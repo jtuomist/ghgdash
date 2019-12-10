@@ -2,6 +2,20 @@ import flask
 from flask import session
 
 
+SCHEMA = {
+    "definitions": {
+        "goal": {
+            "type": "object",
+            "properties": {
+                "year": {"type": "number"},
+                "value": {"type": "value"},
+            },
+            "required": ["year", "value"],
+        },
+    }
+}
+
+
 # Variables
 VARIABLE_DEFAULTS = {
     'target_year': 2035,
@@ -67,6 +81,9 @@ VARIABLE_DEFAULTS = {
 def set_variable(var_name, value):
     assert var_name in VARIABLE_DEFAULTS
     assert isinstance(value, type(VARIABLE_DEFAULTS[var_name]))
+
+    if value != VARIABLE_DEFAULTS[var_name]:
+        assert flask.has_request_context()
 
     if value == VARIABLE_DEFAULTS[var_name]:
         if var_name in session:

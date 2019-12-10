@@ -95,9 +95,8 @@ body, html {
 
 // Cards
 
-.card-border-top    { border-top:    $archer-width solid $archer-color; }
-.card-border-bottom { border-bottom: $archer-width solid $archer-color; }
-
-.card-district-heating-consumption {
-  margin-top: 125px;
+.card-border-top    {
+  border-top:    $archer-width solid $archer-color;
+  margin-top:    125px;
 }
+.card-border-bottom { border-bottom: $archer-width solid $archer-color; }

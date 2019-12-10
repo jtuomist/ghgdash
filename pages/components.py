@@ -3,8 +3,9 @@ import dash_html_components as html
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 
-from . import page_callback, Page
+from .base import Page
 from dash.dependencies import Input, Output
+
 
 def slider_card(title):
     return dbc.Card([
@@ -106,15 +107,18 @@ def total_emissions_bar():
                         showlegend=False,
                     ))))
 
+
 components_page_content = html.Div(children=[
     slider_card("Hello Sliders"),
     total_emissions_bar(),
 ])
 
-@page_callback(
-    [Output('slider-output-container', 'children')],
-    [Input('slider_1', 'value')])
+page = Page(id='components', name='Komponentit', content=components_page_content, path='/komponentit')
+
+
+@page.callback(
+    outputs=[Output('slider-output-container', 'children')],
+    inputs=[Input('slider_1', 'value')]
+)
 def update_output(value):
     return '"{}"'.format(value)
-
-page = Page('Components', components_page_content, [])

@@ -1,33 +1,12 @@
-import copy
-import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 
-
-def deepupdate(target, src):
-    for k, v in src.items():
-        if type(v) == list:
-            if k not in target:
-                target[k] = copy.deepcopy(v)
-            else:
-                target[k].extend(v)
-        elif type(v) == dict:
-            if k not in target:
-                target[k] = copy.deepcopy(v)
-            else:
-                deepupdate(target[k], v)
-        elif type(v) == set:
-            if k not in target:
-                target[k] = v.copy()
-            else:
-                target[k].update(v.copy())
-        else:
-            target[k] = copy.copy(v)
+from utils import deepupdate
 
 
 def make_layout(**kwargs):
     params = dict(
-        margin=go.layout.Margin(
+        margin=dict(
             t=30,
             r=15,
             l=60,
@@ -68,17 +47,20 @@ def make_layout(**kwargs):
 
     deepupdate(params, kwargs)
 
-    return go.Layout(**params)
+    # ret = go.Layout(**params)
+    return params
 
 
-def make_graph_card(graph, *args, **kwargs):
-    class_name = getattr(graph, 'className', '')
-    graph.className = ' '.join([class_name, 'slider-card__graph'])
-    out = dbc.Card(
-        dbc.CardBody(
-            html.Div([
-                graph
-            ], className="slider-card__content"),
-        ), className="mb-4"
-    )
-    return out
+class ConnectedGraphGridRow:
+    def add_graph(self):
+        pass
+
+
+class ConnectedGraphGrid:
+    def __init__(self):
+        self.rows = []
+
+    def add_row(self):
+        row = ConnectedGraphGridRow()
+        self.rows.append(row)
+        return row

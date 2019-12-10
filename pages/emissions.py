@@ -4,28 +4,14 @@ import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-import plotly.graph_objs as go
 from dash_table.Format import Format, Scheme
 from dash.dependencies import Input, Output
 
 from variables import get_variable, set_variable
-from utils.quilt import load_datasets
-from utils.colors import GHG_MAIN_SECTOR_COLORS
-from utils.graphs import make_layout
-from . import page_callback, Page
-
-
-INPUT_DATASETS = [
-    'jyrjola/hsy/pks_khk_paastot',
-]
-
-ghg_emissions = None
-
-
-def prepare_ghg_emissions_dataset(df):
-    df = df[df.Kaupunki == 'Helsinki'].drop(columns='Kaupunki')
-    df = df.set_index('Vuosi')
-    return df
+from utils.colors import GHG_MAIN_SECTOR_COLORS_FI
+from components.graphs import make_layout
+from calc import calcfunc
+from .base import Page
 
 
 def find_consecutive_start(values):
@@ -58,7 +44,9 @@ def generate_ghg_emission_graph(df):
 
     start_year = find_consecutive_start(df.index.unique())
 
-    hist_df = df.query('~Forecast & index >= %s' % start_year)
+    hist_df = df[~df.Forecast]
+    hist_df = hist_df.loc[hist_df.index >= start_year]
+    hist_df = hist_df.copy()
 
     latest_year = hist_df.loc[hist_df.index.max()]
     data_columns = list(latest_year.sort_values(ascending=False).index)
@@ -67,7 +55,8 @@ def generate_ghg_emission_graph(df):
     interpolated_traces = []
     for sector in data_columns:
         s = interpolate_series(hist_df[sector])
-        interpolated_traces.append(go.Scatter(
+        interpolated_traces.append(dict(
+            type='scatter',
             x=s.index,
             y=s,
             mode='lines',
@@ -78,7 +67,8 @@ def generate_ghg_emission_graph(df):
             hoverinfo='none',
         ))
 
-    hist_traces = [go.Scatter(
+    hist_traces = [dict(
+        type='scatter',
         x=hist_df.index,
         y=hist_df[sector],
         mode='markers',
@@ -90,8 +80,9 @@ def generate_ghg_emission_graph(df):
         hoverinfo='y+name',
     ) for sector in data_columns]
 
-    forecast_df = df.query('Forecast | index == %s' % hist_df.index.max())
-    forecast_traces = [go.Scatter(
+    forecast_df = df.loc[df.Forecast | (df.index == hist_df.index.max())].copy()
+    forecast_traces = [dict(
+        type='scatter',
         x=forecast_df.index,
         y=forecast_df[sector],
         mode='lines',
@@ -115,7 +106,7 @@ def generate_ghg_emission_graph(df):
         ),
     )
 
-    fig = go.Figure(data=hist_traces + interpolated_traces + forecast_traces, layout=layout)
+    fig = dict(data=hist_traces + interpolated_traces + forecast_traces, layout=layout)
     return fig
 
 
@@ -134,7 +125,6 @@ def generate_ghg_sliders():
     weights = get_variable('ghg_reductions_weights')
     out = []
     for key, val in GHG_SECTOR_MAP.items():
-        slider_val = 25
         slider = dcc.Slider(
             id='ghg-%s-slider' % key,
             min=5,
@@ -151,19 +141,25 @@ def generate_ghg_sliders():
     return dbc.Row(out)
 
 
-def get_target_emissions():
-    targets = get_variable('ghg_emission_targets')
-    for t in targets:
-        pass
+@calcfunc(
+    variables=[
+        'target_year', 'ghg_reductions_reference_year', 'ghg_reductions_percentage_in_target_year',
+        'ghg_reductions_weights',
+    ],
+    datasets=dict(
+        ghg_emissions='jyrjola/hsy/pks_khk_paastot',
+    )
+)
+def get_ghg_emissions_forecast(variables, datasets):
+    target_year = variables['target_year']
+    reference_year = variables['ghg_reductions_reference_year']
+    reduction_percentage = variables['ghg_reductions_percentage_in_target_year']
+    sector_weights = variables['ghg_reductions_weights']
 
-
-def get_ghg_emissions_forecast():
-    target_year = get_variable('target_year')
-    reference_year = get_variable('ghg_reductions_reference_year')
-    reduction_percentage = get_variable('ghg_reductions_percentage_in_target_year')
-    sector_weights = get_variable('ghg_reductions_weights')
-
-    df = ghg_emissions.reset_index().groupby(['Vuosi', 'Sektori1'])['Päästöt'].sum().reset_index().set_index('Vuosi')
+    df = datasets['ghg_emissions']
+    df = df[df.Kaupunki == 'Helsinki'].drop(columns='Kaupunki')
+    df = df.set_index('Vuosi').copy()
+    df = df.reset_index().groupby(['Vuosi', 'Sektori1'])['Päästöt'].sum().reset_index().set_index('Vuosi')
 
     ref_emissions = df[df.index == reference_year]['Päästöt'].sum()
     target_emissions = ref_emissions * (1 - (reduction_percentage / 100))
@@ -206,32 +202,24 @@ def get_ghg_emissions_forecast():
     return df.copy()
 
 
-def prepare_input_datasets():
-    global ghg_emissions
-
-    ghg_in = load_datasets(INPUT_DATASETS)
-    ghg_emissions = prepare_ghg_emissions_dataset(ghg_in)
-
-
 emissions_page = dbc.Row([
     dbc.Col([
         dbc.Row([
             dbc.Col([
-                html.H2('Kasvihuonekaasupäästöt', style=dict(marginBottom='1em')),
                 html.Div(id='ghg-emissions-table-container'),
             ])
         ], className='mb-4'),
         dbc.Row([
             dbc.Col([
-                dbc.Card(dbc.CardBody(
-                dcc.Graph(
-                    id='ghg-emissions-graph',
-                    config={
-                        'displayModeBar': False,
-                        'showLink': False,
-                    }
-                ),
-                ), className="mb-5")
+                dbc.Card(className='mb-5', children=dbc.CardBody(
+                    dcc.Graph(
+                        id='ghg-emissions-graph',
+                        config={
+                            'displayModeBar': False,
+                            'showLink': False,
+                        }
+                    ),
+                ))
             ], md=8),
             dbc.Col([
                 html.Div(generate_ghg_sliders(), id='ghg-sliders'),
@@ -243,14 +231,116 @@ emissions_page = dbc.Row([
 ])
 
 
-@page_callback(
-    [Output('ghg-emissions-graph', 'figure'), Output('ghg-emissions-table-container', 'children')],
-    [Input(slider.id, 'value') for slider in ghg_sliders])
+def draw_emission_graph(df):
+    start_year = find_consecutive_start(df.index.unique())
+
+    hist_df = df.loc[df.Forecast & (df.index >= start_year)].copy()
+
+    latest_hist_year = hist_df.loc[hist_df.index.max()]
+
+    sector_name = df.name
+
+    s = interpolate_series(hist_df.Emissions)
+    regression_trace = dict(
+        type='scatter',
+        x=s.index,
+        y=s,
+        mode='lines',
+        name=sector_name,
+        line=dict(
+            color=GHG_MAIN_SECTOR_COLORS_FI[sector_name]
+        ),
+        hoverinfo='none',
+    )
+
+    hist_trace = dict(
+        type='scatter',
+        x=hist_df.index,
+        y=hist_df.Emissions,
+        mode='markers',
+        name=sector_name,
+        line=dict(
+            color=GHG_MAIN_SECTOR_COLORS_FI[sector_name]
+        ),
+        showlegend=False,
+        hoverinfo='y+name',
+    )
+
+    forecast_df = df[df.Forecast].copy()
+    forecast_trace = dict(
+        type='scatter',
+        x=forecast_df.index,
+        y=forecast_df.Emissions,
+        mode='lines',
+        name=sector_name,
+        line=dict(
+            color='grey',
+            dash='dash',
+        ),
+        showlegend=False,
+    )
+
+    layout = make_layout(
+        yaxis=dict(
+            title='kt (CO₂-ekv.)',
+            rangemode='tozero',
+        ),
+        margin=dict(
+            t=40,
+            r=20,
+        ),
+        showlegend=False,
+        title=sector_name
+    )
+
+    fig = dict(data=[regression_trace, hist_trace, forecast_trace], layout=layout)
+    return fig
+
+
+def render_page():
+    df = get_ghg_emissions_forecast().copy()
+
+    content = emissions_page
+
+    sectors = list(df.columns)
+    sectors.remove('Forecast')
+
+    cols = []
+    for sector_name in sectors:
+        sec_df = df[[sector_name, 'Forecast']]
+        sec_df = sec_df.rename(columns={sector_name: 'Emissions'})
+        sec_df.name = sector_name
+
+        cols.append(dbc.Col([
+            dbc.Card(dbc.CardBody(
+                dcc.Graph(figure=draw_emission_graph(sec_df))
+            ), className="mb-5")
+        ], md=6))
+
+    content['emission-sectors-graphs'].children = [
+        dbc.Row(cols)
+    ]
+
+    return content
+
+
+page = Page(
+    id='emissions',
+    name='Kasvihuonekaasupäästöt',
+    content=render_page,
+    path='/',
+)
+
+
+@page.callback(
+    outputs=[Output('ghg-emissions-graph', 'figure'), Output('ghg-emissions-table-container', 'children')],
+    inputs=[Input(slider.id, 'value') for slider in ghg_sliders]
+)
 def ghg_slider_callback(*values):
     sectors = [x.id.split('-')[1] for x in ghg_sliders]
     new_values = {s: val for s, val in zip(sectors, values)}
     set_variable('ghg_reductions_weights', new_values)
-    df = get_ghg_emissions_forecast()
+    df = get_ghg_emissions_forecast().copy()
     fig = generate_ghg_emission_graph(df)
 
     df['Yhteensä'] = df.sum(axis=1)
@@ -291,98 +381,3 @@ def ghg_slider_callback(*values):
     )
 
     return [fig, table]
-
-
-prepare_input_datasets()
-
-
-def draw_emission_graph(df):
-    start_year = find_consecutive_start(df.index.unique())
-
-    hist_df = df.query('~Forecast & index >= %s' % start_year)
-    latest_hist_year = hist_df.loc[hist_df.index.max()]
-
-    sector_name = df.name
-
-    s = interpolate_series(hist_df.Emissions)
-    regression_trace = go.Scatter(
-        x=s.index,
-        y=s,
-        mode='lines',
-        name=sector_name,
-        line=dict(
-            color=GHG_MAIN_SECTOR_COLORS[sector_name]
-        ),
-        hoverinfo='none',
-    )
-
-    hist_trace = go.Scatter(
-        x=hist_df.index,
-        y=hist_df.Emissions,
-        mode='markers',
-        name=sector_name,
-        line=dict(
-            color=GHG_MAIN_SECTOR_COLORS[sector_name]
-        ),
-        showlegend=False,
-        hoverinfo='y+name',
-    )
-
-    forecast_df = df.query('Forecast')
-    forecast_trace = go.Scatter(
-        x=forecast_df.index,
-        y=forecast_df.Emissions,
-        mode='lines',
-        name=sector_name,
-        line=dict(
-            color='grey',
-            dash='dash',
-        ),
-        showlegend=False,
-    )
-
-    layout = make_layout(
-        yaxis=dict(
-            title='kt (CO₂-ekv.)',
-            rangemode='tozero',
-        ),
-        margin=go.layout.Margin(
-            t=40,
-            r=20,
-        ),
-        showlegend=False,
-        title=sector_name
-    )
-
-    fig = go.Figure(data=[regression_trace, hist_trace, forecast_trace], layout=layout)
-    return fig
-
-
-def render_page():
-    df = get_ghg_emissions_forecast()
-
-    content = emissions_page
-
-    sectors = list(df.columns)
-    sectors.remove('Forecast')
-
-    cols = []
-    for sector_name in sectors:
-        sec_df = df[[sector_name, 'Forecast']]
-        sec_df = sec_df.rename(columns={sector_name: 'Emissions'})
-        sec_df.name = sector_name
-
-        cols.append(dbc.Col([
-            dbc.Card(dbc.CardBody(
-                dcc.Graph(figure=draw_emission_graph(sec_df))
-            ), className="mb-5")
-        ], md=6))
-
-    content['emission-sectors-graphs'].children = [
-        dbc.Row(cols)
-    ]
-
-    return content
-
-
-page = Page('Päästöt', render_page, [ghg_slider_callback])

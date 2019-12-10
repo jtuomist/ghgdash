@@ -1,15 +1,10 @@
-import pandas as pd
 from matplotlib import cm
 import dash_core_components as dcc
-import dash_html_components as html
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
-from dash.dependencies import Input, Output
 
-from variables import get_variable, set_variable
-from utils.quilt import load_datasets
 from calc.buildings import generate_building_floor_area_forecast
-from . import page_callback, Page
+from .base import Page
 
 
 def generate_buildings_forecast_graph(df):
@@ -65,7 +60,6 @@ buildings_page_content = dbc.Row([
 
 
 def render_page():
-    print('render_page()')
     df = generate_building_floor_area_forecast()
     fig = generate_buildings_forecast_graph(df)
 
@@ -73,4 +67,4 @@ def render_page():
     return buildings_page_content
 
 
-page = Page('Rakennukset', render_page)
+page = Page(id='rakennukset', path='/rakennukset', name='Rakennukset', content=render_page)

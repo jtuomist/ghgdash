@@ -11,19 +11,19 @@ from . import calcfunc
 def get_population_forecast(variables, datasets):
     FORECAST_MADE_YEAR = 2018
 
-    df = datasets['pop_forecast'].copy()
+    df = datasets['pop_forecast']
+    df = df.loc[df.Alue == variables['municipality_name']]
+    df = df.loc[df.Laadintavuosi == 'Laadittu %s' % FORECAST_MADE_YEAR]
+    df = df.loc[df.Vaihtoehto == 'Perusvaihtoehto']
+    df = df.loc[df.Sukupuoli == 'Molemmat sukupuolet']
+    df = df.copy()
+
     df.Vuosi = df.Vuosi.astype(int)
     df.value = df.value.astype(int)
     df.loc[df.Vuosi <= FORECAST_MADE_YEAR, 'Forecast'] = False
     df.loc[df.Vuosi > FORECAST_MADE_YEAR, 'Forecast'] = True
-    df = df.query("""
-        Alue == '{municipality}' & Laadintavuosi == 'Laadittu {forecast_year}' &
-        Vaihtoehto == 'Perusvaihtoehto' & Sukupuoli == 'Molemmat sukupuolet'
-    """.replace('\n', '').format(
-        municipality=variables['municipality_name'], forecast_year=FORECAST_MADE_YEAR
-    ))
     df = df.set_index('Vuosi')
-    df = df.query("Ikä == 'Väestö yhteensä'")[['value', 'Forecast']].copy()
+    df = df.loc[df.Ikä == 'Väestö yhteensä'][['value', 'Forecast']].copy()
     df.rename(columns=dict(value='Population'), inplace=True)
     return df
 

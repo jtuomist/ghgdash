@@ -1,4 +1,3 @@
-import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
@@ -7,11 +6,13 @@ from dash.dependencies import Input, Output
 
 from calc.solar_power import generate_solar_power_forecast
 from variables import set_variable, get_variable
-from utils.graphs import make_layout
-from . import page_callback, Page
+from components.graphs import make_layout
+from .base import Page
 
-SOLAR_POWER_GOAL = 1009 #GWh
-CITY_OWNED = 19.0 #%
+
+SOLAR_POWER_GOAL = 1009  # GWh
+CITY_OWNED = 19.0  # %
+
 
 def generate_solar_power_graph(df, label, col):
     hist_df = df.query('~Forecast')
@@ -43,6 +44,7 @@ def generate_solar_power_graph(df, label, col):
         title=label + " rakennuskannan aurinkopaneelien piikkiteho"
     )
     return go.Figure(data=[hist, forecast], layout=layout)
+
 
 def generate_solar_power_stacked(df):
     pv_kwh_wp = get_variable('yearly_pv_energy_production_kwh_wp')
@@ -153,14 +155,18 @@ def generate_page():
         html.Div(id='solar-power-sticky-page-summary-container'),
     ])
 
-@page_callback(
-    [
+
+page = Page(id='pv-production', name='Aurinkosähkön tuotanto', path='/aurinkopaneelit', content=generate_page)
+
+
+@page.callback(
+    outputs=[
         Output('solar-power-existing-buildings', 'figure'),
         Output('solar-power-new-buildings', 'figure'),
         Output('solar-power-total', 'figure'),
         Output('solar-power-city-gwp', 'children'),
         Output('solar-power-sticky-page-summary-container', 'children'),
-    ], [
+    ], inputs=[
         Input('solar-power-existing-buildings-percentage-slider', 'value'),
         Input('solar-power-new-buildings-percentage-slider', 'value'),
     ]
@@ -192,6 +198,3 @@ def solar_power_callback(existing_building_perc, new_building_perc):
     ], className="page-summary fixed-bottom")]
 
     return fig_old, fig_new, fig_tot, city_gwp, sticky
-
-
-page = Page('Aurinkosähkön tuotanto', generate_page, [solar_power_callback])

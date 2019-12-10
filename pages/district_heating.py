@@ -1,5 +1,4 @@
 import dash_table
-import dash_daq as daq
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
@@ -10,7 +9,7 @@ from dash.dependencies import Input, Output
 
 from calc.district_heating import calc_district_heating_unit_emissions_forecast
 from variables import get_variable, set_variable
-from . import page_callback, Page
+from .base import Page
 
 
 def generate_district_heating_forecast_graph(df):
@@ -175,16 +174,24 @@ district_heat_page_content = dbc.Row([
 ])
 
 
-@page_callback(
-    [
+page = Page(
+    id='district-heat-production',
+    name='Kaukolämmön tuotanto',
+    content=district_heat_page_content,
+    path='/kaukolammon-tuotanto'
+)
+
+
+@page.callback(
+    outputs=[
         Output('district-heating-graph', 'figure'),
         Output('district-heating-table-container', 'children'),
         Output('district-heating-production-source-graph', 'figure'),
-    ], [
+    ], inputs=[
         Input('district-heating-demand-slider', 'value'),
         Input('bio-emission-factor', 'value'),
         *[Input(s.id, 'value') for s in ratio_sliders]
-    ]
+    ],
 )
 def district_heating_callback(demand_value, bio_emission_factor, *args):
     set_variable('district_heating_target_demand_change', demand_value)
@@ -210,6 +217,3 @@ def district_heating_callback(demand_value, bio_emission_factor, *args):
     fuel_fig = generate_production_mix_graph(production_source)
 
     return fig, table, fuel_fig
-
-
-page = Page('Kaukolämpö', district_heat_page_content, [district_heating_callback])

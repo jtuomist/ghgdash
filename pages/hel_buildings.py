@@ -1,19 +1,15 @@
 import os
 import pandas as pd
-import concurrent.futures
 import dash_table
-import dash_daq as daq
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-import numpy as np
 import plotly.graph_objs as go
-from dash_table.Format import Format, Scheme
 from dash.dependencies import Input, Output, State
 
 from calc import calcfunc
 from calc.electricity import calculate_electricity_supply_emission_factor
-from utils.graphs import make_layout, make_graph_card
+from components.graphs import make_layout, make_graph_card
 from utils.quilt import load_datasets
 from . import page_callback, Page
 
