@@ -3,7 +3,7 @@ import pandas as pd
 import scipy.stats
 
 from . import calcfunc
-from .electricity import generate_electricity_emission_factor_forecast
+from .electricity import predict_electricity_emission_factor
 from .district_heating_consumption import generate_heat_consumption_forecast
 
 from common.units import convert_units
@@ -25,7 +25,8 @@ ALL_FUEL_PRODUCTION_TOTAL_COL = 'Kaukolämmön ja yhteistuotantosähkön tuotant
     ),
     datasets=dict(
         fuel_classification='jyrjola/statfi/fuel_classification',
-    )
+    ),
+    funcs=[predict_electricity_emission_factor],
 )
 def calculate_district_heating_unit_emissions(fuel_use_df, production_df, variables, datasets):
     bio_emission_factor = variables['bio_emission_factor'] / 100
@@ -69,7 +70,7 @@ def calculate_district_heating_unit_emissions(fuel_use_df, production_df, variab
     heat_pump_ele.name = 'Heat pump electricity consumption'
 
     # Calculate the emissions from the electricity used by the heat pumps
-    el_emission_factor = generate_electricity_emission_factor_forecast()
+    el_emission_factor = predict_electricity_emission_factor()
     heat_pump_emissions = heat_pump_ele.multiply(el_emission_factor['EmissionFactor']).fillna(0)
     heat_pump_emissions = heat_pump_emissions.reindex(heat_pump_ele.index)
 
