@@ -28,44 +28,67 @@ def generate_electricity_emission_factor_forecast():
 
 
 @calcfunc(
-    variables=['target_year', 'municipality_name', 'electricity_consumption_forecast_adjustment'],
+    variables=['municipality_name'],
     datasets=dict(
-        energy_consumption='jyrjola/ymparistotilastot/e12_helsingin_kaukolammon_sahkonkulutus'
-    ),
-    funcs=[get_adjusted_population_forecast],
+        energy_consumption='jyrjola/ymparistotilastot/e03_energian_kokonaiskulutus'
+    )
 )
-def generate_electricity_consumption_forecast(variables, datasets):
+def prepare_electricity_consumption_dataset(variables, datasets):
+    df = datasets['energy_consumption']
+    muni_name = variables['municipality_name']
+    df = df[df.Alue == muni_name]
+    df = df[df.Sektori == 'Kulutussähkö']
+    df = df[df.Muuttuja == 'Kokonaiskulutus (GWh)']
+    df = df.rename(columns=dict(Vuosi='Year'))
+    df['Year'] = df.Year.astype(int)
+    s = df.set_index('Year')['value']
+    s.name = 'ElectricityConsumption'
+    return s
+
+
+@calcfunc(
+    variables=['target_year', 'electricity_consumption_per_capita_adjustment'],
+    funcs=[prepare_electricity_consumption_dataset, get_adjusted_population_forecast],
+)
+def generate_electricity_consumption_forecast(variables):
     pop_df = get_adjusted_population_forecast()
     target_year = variables['target_year']
 
-    el_df = datasets['energy_consumption']
-    muni_name = variables['municipality_name']
-    el_df = el_df.query(f'Kunta == "{muni_name}" & Energiamuoto == "Sähkö" & Sektori == "Kulutus yhteensä (GWh)"').copy()
-    el_df['Vuosi'] = el_df.Vuosi.astype(int)
-    el_df = el_df.set_index('Vuosi')['value']
-
-    el_per_capita = (el_df / pop_df['Population']).dropna()
+    el_s = prepare_electricity_consumption_dataset()
+    el_per_capita = (el_s / pop_df['Population']).dropna()
     el_per_capita *= 1000000  # GWh to kWh
 
     # Do a logarithmic regression
     s = np.log(el_per_capita)
 
-    rs = s.loc[s.index >= 2007]
+    # Look at the last 10 years
+    rs = s.loc[s.index >= s.index.max() - 10]
     res = scipy.stats.linregress(rs.index, rs)
 
     last_year = s.index.max()
     last_val = s.loc[last_year]
-    for year in range(1, target_year - last_year + 1):
-        s.loc[last_year + year] = last_val + res.slope * year
+    for year_idx in range(1, target_year - last_year + 1):
+        year = last_year + year_idx
+        per_capita_log = last_val + res.slope * year_idx
+        s.loc[year] = per_capita_log
 
     s = np.exp(s)
+    s.name = 'ElectricityConsumptionPerCapita'
 
-    # Convert to electricity consumption
-    el_s = pop_df['Population'] * s / 1000000
-    el_s.name = 'ElectricityConsumption'
-    df = pd.DataFrame(el_s)
+    adj_perc = (100 + variables['electricity_consumption_per_capita_adjustment']) / 100
+    cur_adj = adj_perc
+    for year in range(last_year, target_year + 1):
+        s[year] *= cur_adj
+        cur_adj *= adj_perc
+
+    df = pd.DataFrame(data=s)
+    df.name = 'Electricity consumption'
+    df['ElectricityConsumption'] = el_s
+    df['Population'] = pop_df['Population']
     df['Forecast'] = False
     df.loc[df.index > last_year, 'Forecast'] = True
+
+    df.loc[df.Forecast, 'ElectricityConsumption'] = df['Population'] * df['ElectricityConsumptionPerCapita'] / 1000000
     df = df.dropna()
     return df
 
@@ -121,4 +144,5 @@ def calculate_electricity_supply_emission_factor(datasets):
 
 
 if __name__ == '__main__':
-    print(calculate_electricity_supply_emission_factor())
+    generate_electricity_consumption_forecast()
+    # print(calculate_electricity_supply_emission_factor())

@@ -78,6 +78,7 @@ def generate_ghg_emission_graph(df):
         ),
         showlegend=False,
         hoverinfo='y+name',
+        hovertemplate='%{x}: %{y:.0f} kt',
     ) for sector in data_columns]
 
     forecast_df = df.loc[df.Forecast | (df.index == hist_df.index.max())].copy()
@@ -86,11 +87,12 @@ def generate_ghg_emission_graph(df):
         x=forecast_df.index,
         y=forecast_df[sector],
         mode='lines',
-        name=sector,
+        name=sector + ' (tavoite)',
         line=dict(
             color=COLORS[sector],
             dash='dash',
         ),
+        hovertemplate='%{x}: %{y:.0f} kt',
         showlegend=False,
     ) for sector in data_columns]
 
@@ -206,11 +208,6 @@ emissions_page = dbc.Row([
     dbc.Col([
         dbc.Row([
             dbc.Col([
-                html.Div(id='ghg-emissions-table-container'),
-            ])
-        ], className='mb-4'),
-        dbc.Row([
-            dbc.Col([
                 dbc.Card(className='mb-5', children=dbc.CardBody(
                     dcc.Graph(
                         id='ghg-emissions-graph',
@@ -224,7 +221,12 @@ emissions_page = dbc.Row([
             dbc.Col([
                 html.Div(generate_ghg_sliders(), id='ghg-sliders'),
             ], md=4, className='mt-4'),
-        ])
+        ]),
+        dbc.Row([
+            dbc.Col([
+                html.Div(id='ghg-emissions-table-container'),
+            ])
+        ], className='mb-4'),
     ]),
 
     html.Div(id='emission-sectors-graphs')
@@ -306,6 +308,7 @@ def render_page():
     sectors.remove('Forecast')
 
     cols = []
+    """
     for sector_name in sectors:
         sec_df = df[[sector_name, 'Forecast']]
         sec_df = sec_df.rename(columns={sector_name: 'Emissions'})
@@ -320,6 +323,7 @@ def render_page():
     content['emission-sectors-graphs'].children = [
         dbc.Row(cols)
     ]
+    """
 
     return content
 
@@ -357,12 +361,13 @@ def ghg_slider_callback(*values):
     table_data = table_df.reset_index().to_dict('rows')
     table_cols = []
     for col_name in data_columns:
-        col = dict(id=col_name, name=col_name)
+        col = dict(id=col_name)
         if col_name == 'Vuosi':
-            pass
+            col['name'] = ['', 'Vuosi']
         else:
             col['type'] = 'numeric'
-            col['format'] = Format(precision=0, scheme=Scheme.fixed)
+            col['format'] = Format(precision=0, group='', scheme=Scheme.fixed)
+            col['name'] = ['Päästöt', col_name]
         table_cols.append(col)
     table = dash_table.DataTable(
         data=table_data,
@@ -377,7 +382,8 @@ def ghg_slider_callback(*values):
                 'if': {'column_id': 'Vuosi'},
                 'fontWeight': 'bold',
             }
-        ]
+        ],
+        merge_duplicate_headers=True,
     )
 
     return [fig, table]

@@ -37,7 +37,7 @@ class StickyBar:
                 x=[emissions],
                 name=name,
                 orientation='h',
-                hovertemplate='%{label}: %{x: .0f}',
+                hovertemplate='%{x: .0f}',
                 marker=dict(
                     color=GHG_MAIN_SECTOR_COLORS[sector_name]
                 )
@@ -89,10 +89,10 @@ class StickyBar:
         graph = dcc.Graph(
             config={
                 'displayModeBar': False,
+                'responsive': True,
             },
-            style={'height': 60, 'width': '60%'},
+            style={'height': 60, 'width': '100%'},
             figure=fig,
-            className='float-left',
         )
         return graph
 
@@ -104,7 +104,7 @@ class StickyBar:
 
         target_year = get_variable('target_year')
 
-        summary = html.Div([
+        summary = dbc.Col([
             html.H6(f'{self.label} ({target_year})'),
             html.Div([
                 html.Div([
@@ -116,10 +116,12 @@ class StickyBar:
                     html.Span(" %s" % self.unit, className="unit")
                 ], className="page-summary__target")
             ], className="page-summary__totals"),
-        ])
+        ], md=6)
 
-        pötkylä = self.render_emissions_bar()
-
+        pötkylä = dbc.Col([
+            html.H6('Päästövähennykset'),
+            self.render_emissions_bar()
+        ], md=6)
         return dbc.Alert([
-            pötkylä, summary
+            dbc.Row([pötkylä, summary])
         ], className="page-summary fixed-bottom")

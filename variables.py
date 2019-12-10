@@ -70,7 +70,7 @@ VARIABLE_DEFAULTS = {
     'district_heating_new_building_efficiency_change': -3.5,  # Percent per year
 
     'electricity_production_emissions_correction': 0,
-    'electricity_consumption_forecast_adjustment': 0,  # Percent in target year
+    'electricity_consumption_per_capita_adjustment': 0.0,  # Percent per year
 
     'solar_power_existing_buildings_percentage': 75,
     'solar_power_new_buildings_percentage': 90,

@@ -4,8 +4,10 @@ import dash_bootstrap_components as dbc
 from pages import get_page_for_emission_sector
 from calc.emissions import generate_emissions_forecast, SECTORS, HEATING_SUBSECTORS
 
+from variables import get_variable
 
-def _make_nav_item(sector_name, emissions, indent, page):
+
+def _make_nav_item(sector_name, emissions, indent, page, bold=False):
     attrs = {}
     if page is None:
         attrs['disabled'] = True
@@ -15,6 +17,9 @@ def _make_nav_item(sector_name, emissions, indent, page):
     style = {}
     if indent:
         style = {'margin-left': '2rem'}
+    if bold:
+        style = {'font-weight': 'bold'}
+
     item = dbc.ListGroupItem(
         [
             html.Span(sector_name, style=style),
@@ -29,6 +34,7 @@ def _make_nav_item(sector_name, emissions, indent, page):
 
 def make_emission_nav():
     df = generate_emissions_forecast()
+    target_year = get_variable('target_year')
 
     df = df[df.Year == df.Year.max()]
 
@@ -52,4 +58,10 @@ def make_emission_nav():
             item = _make_nav_item(HEATING_SUBSECTORS[subsector_name], emissions, True, page)
             items.append(item)
 
-    return dbc.ListGroup(children=items)
+    sum_emissions = sector_emissions.sum()
+    items.append(_make_nav_item('Yhteensä', sum_emissions, False, None, bold=True))
+
+    return html.Div([
+        html.H6('Päästöt vuonna %s' % target_year),
+        dbc.ListGroup(children=items)
+    ])

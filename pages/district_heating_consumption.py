@@ -30,11 +30,11 @@ NEW_BUILDINGS_COLOR = '#ffb59b'
 def draw_existing_building_unit_heat_factor_graph():
     df = generate_heat_use_per_net_area_forecast_existing_buildings()
 
-    hist_df = df.query('~Forecast')
+    hist_df = df[~df.Forecast]
     hist = go.Scatter(
         x=hist_df.index,
         y=hist_df.HeatUsePerNetArea,
-        hovertemplate='%{x}: %{y:.0f}',
+        hovertemplate='%{x}: %{y:.0f} kWh/k-m²',
         mode='lines',
         name='Ominaislämmönkulutus',
         line=dict(
@@ -42,11 +42,11 @@ def draw_existing_building_unit_heat_factor_graph():
         )
     )
 
-    forecast_df = df.query('Forecast')
+    forecast_df = df[df.Forecast | (df.index == hist_df.index.max())]
     forecast = go.Scatter(
         x=forecast_df.index,
         y=forecast_df.HeatUsePerNetArea,
-        hovertemplate='%{x}: %{y:.0f}',
+        hovertemplate='%{x}: %{y:.0f} kWh/k-m²',
         mode='lines',
         name='Ominaislämmönkulutus (enn.)',
         line=dict(
@@ -74,7 +74,7 @@ def draw_new_building_unit_heat_factor_graph():
     forecast = go.Scatter(
         x=forecast_df.index,
         y=forecast_df,
-        hovertemplate='%{x}: %{y:.0f}',
+        hovertemplate='%{x}: %{y:.0f} kWh/k-m²',
         mode='lines',
         name='Ominaislämmönkulutus (enn.)',
         line=dict(
@@ -103,7 +103,7 @@ def draw_heat_consumption():
         mode='none',
         fill='tozeroy',
         name='Vanhat rakennukset',
-        hovertemplate='%{x}: %{y:.0f}',
+        hovertemplate='%{x}: %{y:.0f} GWh',
         fillcolor=EXISTING_BUILDINGS_HIST_COLOR,
         line=dict(
             color=EXISTING_BUILDINGS_HIST_COLOR,
@@ -118,7 +118,7 @@ def draw_heat_consumption():
         mode='none',
         fill='tonexty',
         name='Vanhat rakennukset (enn.)',
-        hovertemplate='%{x}: %{y:.0f}',
+        hovertemplate='%{x}: %{y:.0f} GWh',
         fillcolor=EXISTING_BUILDINGS_FORECAST_COLOR,
         line=dict(
             color=EXISTING_BUILDINGS_FORECAST_COLOR,
@@ -133,7 +133,7 @@ def draw_heat_consumption():
         y=new_building_heat_use,
         mode='none',
         name='Uudet rakennukset',
-        hovertemplate='%{x}: %{y:.0f}',
+        hovertemplate='%{x}: %{y:.0f} GWh',
         fillcolor=NEW_BUILDINGS_COLOR,
         line=dict(
             color=NEW_BUILDINGS_COLOR,
@@ -161,6 +161,7 @@ def draw_district_heat_consumption_emissions(df):
         y=hist_df['District heat consumption emissions'],
         mode='lines',
         name='Päästöt',
+        hovertemplate='%{x}: %{y:.0f} kt',
         line=dict(
             color=GHG_MAIN_SECTOR_COLORS['BuildingHeating'],
             shape='spline',
@@ -173,7 +174,7 @@ def draw_district_heat_consumption_emissions(df):
         x=forecast_df.index,
         y=forecast_df['District heat consumption emissions'],
         mode='lines',
-        hovertemplate='%{x}: %{y:.0f}',
+        hovertemplate='%{x}: %{y:.0f} kt',
         name='Päästöt (enn.)',
         line=dict(
             color=GHG_MAIN_SECTOR_COLORS['BuildingHeating'],
