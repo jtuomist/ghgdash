@@ -26,26 +26,38 @@ NEW_BUILDINGS_COLOR = '#ffb59b'
 
 def draw_existing_building_unit_heat_factor_graph(df):
     graph = PredictionGraph(
-        df=df, sector_name='BuildingHeating', column_name='ExistingBuildingHeatUsePerNetArea',
-        unit_name='kWh/k-m²', trace_name='Ominaislämmönkulutus',
+        sector_name='BuildingHeating',
+        unit_name='kWh/k-m²',
         title='Olemassaolevan rakennuskannan ominaislämmönkulutus',
-        historical_color=EXISTING_BUILDINGS_HIST_COLOR,
-        forecast_color=EXISTING_BUILDINGS_FORECAST_COLOR
+    )
+    graph.add_series(
+        df=df, column_name='ExistingBuildingHeatUsePerNetArea', trace_name='Ominaislämmönkulutus',
     )
     return graph.get_figure()
 
 
 def draw_new_building_unit_heat_factor_graph(df):
     graph = PredictionGraph(
-        df=df, sector_name='BuildingHeating', column_name='NewBuildingHeatUsePerNetArea',
-        unit_name='kWh/k-m²', trace_name='Ominaislämmönkulutus',
+        sector_name='BuildingHeating',
+        unit_name='kWh/k-m²',
         title='Uuden rakennuskannan ominaislämmönkulutus',
-        forecast_color=NEW_BUILDINGS_COLOR
+    )
+    graph.add_series(
+        df=df, column_name='NewBuildingHeatUsePerNetArea', trace_name='Ominaislämmönkulutus',
+        luminance_change=0.1
     )
     return graph.get_figure()
 
 
 def draw_heat_consumption(df):
+    graph = PredictionGraph(
+        title='Kaukolämmön kokonaiskulutus',
+        unit_name='GWh',
+        sector_name='BuildingHeating',
+    )
+    graph.add_series(
+        df=df, column_name='ExistingBuildingHeatUse', trace_name='Vanhat rakennukset',
+    )
     hist_df = df[~df.Forecast]
     t1h = go.Scatter(
         x=hist_df.index,
@@ -105,9 +117,12 @@ def draw_heat_consumption(df):
 
 def draw_district_heat_consumption_emissions(df):
     graph = PredictionGraph(
-        df=df, sector_name='BuildingHeating', column_name='District heat consumption emissions',
-        unit_name='kt', trace_name='Päästöt', title='Kaukolämmön kulutuksen päästöt',
+        sector_name='BuildingHeating',
+        unit_name='kt', title='Kaukolämmön kulutuksen päästöt',
         smoothing=True,
+    )
+    graph.add_series(
+        df=df, column_name='District heat consumption emissions', trace_name='Päästöt'
     )
     return graph.get_figure()
 

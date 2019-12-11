@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 import pandas as pd
-import dash_bootstrap_components as dbc
-import dash_html_components as html
 import plotly.graph_objs as go
+from colour import Color
 
 from utils import deepupdate
 from utils.data import find_consecutive_start
@@ -59,19 +58,15 @@ def make_layout(**kwargs):
 
 
 @dataclass
-class PredictionGraph:
+class PredictionGraphSeries:
     df: pd.DataFrame
-    sector_name: str = None
-    title: str = None
     trace_name: str = None
-    unit_name: str = None
     column_name: str = None
     historical_color: str = None
     forecast_color: str = None
-    smoothing: bool = False
-    y_max: float = None
+    luminance_change: float = None
 
-    def __post_init__(self,):
+    def __post_init__(self):
         df = self.df
         col_names = list(df.columns)
         assert 'Forecast' in df.columns
@@ -87,17 +82,31 @@ class PredictionGraph:
         else:
             assert isinstance(self.column_name, str)
 
-        if not self.historical_color:
-            self.historical_color = GHG_MAIN_SECTOR_COLORS[self.sector_name]
-        if not self.forecast_color:
-            self.forecast_color = GHG_MAIN_SECTOR_COLORS[self.sector_name]
 
-    def get_figure(self):
-        df = self.df
+@dataclass
+class PredictionGraph:
+    sector_name: str = None
+    title: str = None
+    unit_name: str = None
+    y_max: float = None
+    smoothing: bool = False
+
+    def __post_init__(self):
+        self.series_list = []
+
+    def get_traces_for_series(self, series: PredictionGraphSeries, index: int, has_multiple_series: bool):
+        df = series.df
+
+        trace_attrs = {}
+        if has_multiple_series:
+            trace_attrs['mode'] = 'none'
+            trace_attrs['fill'] = 'tozeroy' if index == 0 else 'tonexty'
+        else:
+            trace_attrs['mode'] = 'lines'
 
         start_year = find_consecutive_start(df.index)
 
-        y_column = self.column_name
+        y_column = series.column_name
         hist_series = df.loc[~df.Forecast & (df.index >= start_year), y_column].dropna()
 
         hovertemplate = '%{x}: %{y}'
@@ -110,39 +119,72 @@ class PredictionGraph:
             line_attrs.update(dict(smoothing=1, shape='spline'))
 
         if len(hist_series):
+            if not series.historical_color:
+                color = Color(GHG_MAIN_SECTOR_COLORS[self.sector_name])
+                if series.luminance_change:
+                    color.set_luminance(color.get_luminance() * (1 + series.luminance_change))
+            else:
+                color = Color(series.historical_color)
+
+            if has_multiple_series:
+                trace_attrs['fillcolor'] = color.hex
+                trace_attrs['stackgroup'] = 'history'
+
             hist_trace = dict(
                 type='scatter',
                 x=hist_series.index.astype(str),
                 y=hist_series,
-                mode='lines',
-                name=self.trace_name,
+                name=series.trace_name,
                 hovertemplate=hovertemplate,
                 line=dict(
-                    color=self.historical_color,
+                    color=color.hex,
                     **line_attrs,
-                )
+                ),
+                **trace_attrs
             )
 
             traces.append(hist_trace)
             last_hist_year = hist_series.index.max()
             forecast_series = df.loc[df.Forecast | (df.index == last_hist_year), y_column]
         else:
-            forecast_series = df[df.Forecast, y_column]
+            forecast_series = df.loc[df.Forecast, y_column]
 
-        forecast_trace = go.Scatter(
-            x=forecast_series.index.astype(str),
-            y=forecast_series,
-            mode='lines',
-            name='%s (enn.)' % self.trace_name,
-            hovertemplate=hovertemplate,
-            line=dict(
-                color=self.forecast_color,
-                dash='dash',
-                **line_attrs,
+        forecast_series = forecast_series.dropna()
+        if len(forecast_series):
+            if not series.forecast_color:
+                color = Color(GHG_MAIN_SECTOR_COLORS[self.sector_name])
+                if series.luminance_change:
+                    color.set_luminance(color.get_luminance() * (1 + series.luminance_change))
+                # Lighten forecast series by 10 %
+                color.set_luminance(color.get_luminance() * 1.1)
+            else:
+                color = Color(series.forecast_color)
+
+            if has_multiple_series:
+                trace_attrs['fillcolor'] = color.hex
+                trace_attrs['stackgroup'] = 'forecast'
+
+            forecast_trace = go.Scatter(
+                x=forecast_series.index.astype(str),
+                y=forecast_series,
+                name='%s (enn.)' % series.trace_name,
+                hovertemplate=hovertemplate,
+                line=dict(
+                    color=color.hex,
+                    dash='dash',
+                    **line_attrs,
+                ),
+                **trace_attrs
             )
-        )
-        traces.insert(0, forecast_trace)
+            traces.insert(0, forecast_trace)
 
+        return traces
+
+    def add_series(self, *args, **kwargs):
+        series = PredictionGraphSeries(*args, **kwargs)
+        self.series_list.append(series)
+
+    def get_figure(self):
         yattrs = {}
         if self.y_max:
             yattrs['fixedrange'] = True
@@ -158,7 +200,13 @@ class PredictionGraph:
                 # type='linear',
                 fixedrange=True,
             ),
+            hovermode='closest',
         )
+
+        traces = []
+        has_multiple = len(self.series_list) > 1
+        for idx, series in enumerate(self.series_list):
+            traces += self.get_traces_for_series(series, idx, has_multiple)
 
         fig = go.Figure(data=traces, layout=layout)
 

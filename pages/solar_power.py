@@ -1,4 +1,4 @@
-import dash_core_components as dcc
+import numpy as np
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
@@ -16,12 +16,16 @@ SOLAR_POWER_GOAL = 1009  # GWh
 CITY_OWNED = 19.0  # %
 
 
-def generate_solar_power_graph(df, label, col, ymax):
+def generate_solar_power_graph(df, label, col, ymax, is_existing):
     graph = PredictionGraph(
-        df=df, sector_name='ElectricityConsumption', unit_name='MWp',
-        trace_name='Piikkiteho', title='%s rakennuskannan aurinkopaneelien piikkiteho' % label,
-        column_name=col, y_max=ymax
+        sector_name='ElectricityConsumption', unit_name='MWp',
+        title='%s rakennuskannan aurinkopaneelien piikkiteho' % label,
+        y_max=ymax
     )
+    luminance_change = 0
+    if is_existing:
+        luminance_change = -0.3
+    graph.add_series(df=df, trace_name='Piikkiteho', column_name=col, luminance_change=luminance_change)
     return graph.get_figure()
 
 
@@ -29,62 +33,22 @@ def generate_solar_power_stacked(df):
     pv_kwh_wp = get_variable('yearly_pv_energy_production_kwh_wp')
     df.SolarPowerNew = df.SolarPowerNew * pv_kwh_wp
     df.SolarPowerExisting = df.SolarPowerExisting * pv_kwh_wp
+    df.loc[~df.Forecast, 'SolarPowerNew'] = np.nan
 
-    t1 = go.Scatter(
-        x=df.index,
-        y=df.SolarPowerExisting,
-        mode='none',
-        fill='tonexty',
-        name='Vanhat rakennukset',
-        fillcolor='rgb(253, 79, 0)',
-        line=dict(
-            color='rgb(253, 79, 0)',
-            shape='spline',
-        ),
-        stackgroup='one'
+    graph = PredictionGraph(
+        sector_name='ElectricityConsumption', unit_name='GWh',
+        title='Aurinkopaneelien sähköntuotanto',
     )
-    t2 = go.Scatter(
-        x=df.index,
-        y=df.SolarPowerNew,
-        mode='none',
-        name='Uudet rakennukset',
-        line=dict(
-            color='red',
-            shape='spline',
-            smoothing=1,
-        ),
-        stackgroup='one'
-    )
+    graph.add_series(df=df, trace_name='Vanhat rakennukset', column_name='SolarPowerExisting', luminance_change=-0.3)
+    graph.add_series(df=df, trace_name='Uudet rakennukset', column_name='SolarPowerNew')
 
     forecast_df = df[df.Forecast]
-    forecast_start_year, forecast_end_year = forecast_df.index.min(), forecast_df.index.max()
-
-    layout = make_layout(
-        yaxis=dict(
-            title='GWh',
-        ),
-        title="Aurinkopaneelien sähköntuotanto",
-        shapes=[
-            dict(
-                type='rect',
-                x0=forecast_start_year - 1,
-                x1=forecast_end_year,
-                xref='x',
-                y0=0,
-                y1=1,
-                yref='paper',
-                opacity=0.2,
-                fillcolor='white',
-                line=dict(width=0)
-            )
-        ]
-    )
     hist_df = df[~df.Forecast]
     years_left = forecast_df.index.max() - hist_df.index.max()
     ekwpa = (forecast_df.SolarPowerExisting.iloc[-1] - hist_df.SolarPowerExisting.iloc[-1]) / years_left
     nkwpa = forecast_df.SolarPowerNew.iloc[-1] / years_left
 
-    return go.Figure(data=[t1, t2], layout=layout), ekwpa / pv_kwh_wp, nkwpa / pv_kwh_wp
+    return graph.get_figure(), ekwpa / pv_kwh_wp, nkwpa / pv_kwh_wp
 
 
 def generate_page():
@@ -155,9 +119,9 @@ def solar_power_callback(existing_building_perc, new_building_perc):
     kwp_df = predict_solar_power_production()
 
     ymax = kwp_max.SolarPowerExisting.iloc[-1]
-    fig_old = generate_solar_power_graph(kwp_df, "Vanhan", "SolarPowerExisting", ymax)
+    fig_old = generate_solar_power_graph(kwp_df, "Vanhan", "SolarPowerExisting", ymax, True)
     ymax = kwp_max.SolarPowerNew.iloc[-1]
-    fig_new = generate_solar_power_graph(kwp_df, "Uuden", "SolarPowerNew", ymax)
+    fig_new = generate_solar_power_graph(kwp_df, "Uuden", "SolarPowerNew", ymax, False)
     fig_tot, ekwpa, nkwpa = generate_solar_power_stacked(kwp_df)
 
     s = kwp_df.SolarPowerAll

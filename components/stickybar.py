@@ -31,7 +31,6 @@ class StickyBar:
         page = self.current_page
         for sector_name, emissions in reductions.iteritems():
             sector_metadata = SECTORS[sector_name]
-            print(page.emission_sector, sector_name)
             if page is not None and page.emission_sector is not None and \
                     page.emission_sector[0] == sector_name:
                 active = True
