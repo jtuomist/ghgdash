@@ -1,13 +1,12 @@
 import numpy as np
 import dash_html_components as html
-import dash_bootstrap_components as dbc
-import plotly.graph_objs as go
 from dash.dependencies import Input, Output
 
 from calc.solar_power import predict_solar_power_production
+from calc.electricity import predict_electricity_emission_factor
 from variables import set_variable, get_variable
-from components.graphs import make_layout, PredictionGraph
-from components.cards import make_graph_card
+from components.graphs import PredictionGraph
+from components.cards import GraphCard, ConnectedCardGrid
 from components.stickybar import StickyBar
 from .base import Page
 
@@ -52,9 +51,10 @@ def generate_solar_power_stacked(df):
 
 
 def generate_page():
-    rows = []
-    card = make_graph_card(
-        card_id='solar-power-existing-buildings',
+    grid = ConnectedCardGrid()
+
+    existing_card = GraphCard(
+        id='solar-power-existing-buildings',
         slider=dict(
             min=0,
             max=90,
@@ -64,8 +64,8 @@ def generate_page():
         ),
         extra_content=html.Div(id='solar-power-existing-kwpa'),
     )
-    card2 = make_graph_card(
-        card_id='solar-power-new-buildings',
+    new_card = GraphCard(
+        id='solar-power-new-buildings',
         slider=dict(
             min=20,
             max=100,
@@ -75,23 +75,29 @@ def generate_page():
         ),
         extra_content=html.Div(id='solar-power-new-kwpa'),
     )
+    grid.make_new_row()
+    grid.add_card(existing_card)
+    grid.add_card(new_card)
 
-    rows.append(dbc.Row([
-        dbc.Col(card, md=6),
-        dbc.Col(card2, md=6)
-    ]))
+    production_card = GraphCard(id='solar-power-production')
+    existing_card.connect_to(production_card)
+    new_card.connect_to(production_card)
+    grid.make_new_row()
+    grid.add_card(production_card)
 
-    card = make_graph_card(card_id='solar-power-total')
-    rows.append(dbc.Row(dbc.Col(card, md=6, className='offset-md-3')))
+    emission_card = GraphCard(id='solar-power-emission-reductions')
+    production_card.connect_to(emission_card)
+    grid.make_new_row()
+    grid.add_card(emission_card)
 
-    return html.Div([*rows, html.Div(id='solar-power-sticky-page-summary-container')])
+    return html.Div([grid.render(), html.Div(id='solar-power-sticky-page-summary-container')])
 
 
 page = Page(
     id='pv-production',
     name='Aurinkosähkön tuotanto',
     path='/aurinkopaneelit',
-    emission_sector=['ElectricityConsumption', None],
+    emission_sector=['ElectricityConsumption', 'SolarPower'],
     content=generate_page
 )
 
@@ -100,7 +106,8 @@ page = Page(
     outputs=[
         Output('solar-power-existing-buildings-graph', 'figure'),
         Output('solar-power-new-buildings-graph', 'figure'),
-        Output('solar-power-total-graph', 'figure'),
+        Output('solar-power-production-graph', 'figure'),
+        Output('solar-power-emission-reductions-graph', 'figure'),
         Output('solar-power-existing-kwpa', 'children'),
         Output('solar-power-new-kwpa', 'children'),
         Output('solar-power-sticky-page-summary-container', 'children'),
@@ -110,10 +117,13 @@ page = Page(
     ]
 )
 def solar_power_callback(existing_building_perc, new_building_perc):
+    # First see what the maximum solar production capacity is to set the
+    # Y axis maximum.
     set_variable('solar_power_existing_buildings_percentage', 100)
     set_variable('solar_power_new_buildings_percentage', 100)
     kwp_max = predict_solar_power_production()
 
+    # Then predict with the given percentages.
     set_variable('solar_power_existing_buildings_percentage', existing_building_perc)
     set_variable('solar_power_new_buildings_percentage', new_building_perc)
     kwp_df = predict_solar_power_production()
@@ -123,6 +133,15 @@ def solar_power_callback(existing_building_perc, new_building_perc):
     ymax = kwp_max.SolarPowerNew.iloc[-1]
     fig_new = generate_solar_power_graph(kwp_df, "Uuden", "SolarPowerNew", ymax, False)
     fig_tot, ekwpa, nkwpa = generate_solar_power_stacked(kwp_df)
+
+    ef_df = predict_electricity_emission_factor()
+    kwp_df['EmissionReductions'] = ef_df['EmissionFactor'] * kwp_df['SolarPowerAll'] / 1000
+    graph = PredictionGraph(
+        sector_name='ElectricityConsumption', unit_name='kt',
+        title='Aurinkopaneelien päästövähennykset',
+    )
+    graph.add_series(kwp_df, trace_name='Päästövähennykset', column_name='EmissionReductions')
+    fig_emissions = graph.get_figure()
 
     s = kwp_df.SolarPowerAll
     forecast = s.iloc[-1] * get_variable('yearly_pv_energy_production_kwh_wp')
@@ -153,4 +172,4 @@ def solar_power_callback(existing_building_perc, new_building_perc):
         unit='GWh', current_page=page, below_goal_good=False,
     )
 
-    return [fig_old, fig_new, fig_tot, existing_kwpa, new_kwpa, sticky.render()]
+    return [fig_old, fig_new, fig_tot, fig_emissions, existing_kwpa, new_kwpa, sticky.render()]

@@ -6,7 +6,7 @@ from dash.dependencies import Input, Output
 
 from variables import get_variable, set_variable
 from calc.population import get_adjusted_population_forecast
-from components.cards import make_graph_card
+from components.cards import GraphCard
 from components.graphs import make_layout
 from .base import Page
 
@@ -58,42 +58,8 @@ def render_page():
         value=get_variable('population_forecast_correction'),
         marks={x: '%d %%' % x for x in range(-20, 20 + 1, 5)},
     )
-    pop_df = get_adjusted_population_forecast()
-    card = make_graph_card(card_id='population', slider=slider)
+    card = GraphCard(id='population', slider=slider).render()
     return dbc.Row(dbc.Col(card, md=6))
-
-    cols = [
-        dbc.Col([
-            dcc.Graph(
-                id='population-graph',
-                config={
-                    'displayModeBar': False,
-                    'showLink': False,
-                }
-            ),
-            html.Div([
-                html.P(children=[
-                    'Väestön määrä vuonna %s: ' % get_variable('target_year'),
-                    html.Strong(id='population-count-target-year')
-                ]),
-            ]),
-        ], md=8),
-        dbc.Col([
-            html.H5('Väestöennusteen korjausprosentti'),
-            html.Div([
-                dcc.Slider(
-                    id='population-slider',
-                    min=-20,
-                    max=20,
-                    step=5,
-                    value=get_variable('population_forecast_correction'),
-                    marks={x: '%d %%' % x for x in range(-20, 20 + 1, 5)},
-                ),
-            ]),
-        ], md=4),
-    ]
-
-    return dbc.Row(cols)
 
 
 page = Page(

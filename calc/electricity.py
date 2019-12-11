@@ -176,7 +176,8 @@ def calculate_electricity_supply_emission_factor(datasets):
 def predict_electricity_consumption_emissions():
     cdf = predict_electricity_consumption()
     udf = predict_electricity_emission_factor()
-    cdf['Emissions'] = cdf['ElectricityConsumption'] * udf['EmissionFactor'] / 1000
+    cdf['EmissionFactor'] = udf['EmissionFactor']
+    cdf['Emissions'] = cdf['ElectricityConsumption'] * cdf['EmissionFactor'] / 1000
     return cdf
 
 

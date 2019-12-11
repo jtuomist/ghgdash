@@ -22,9 +22,9 @@ def _make_nav_item(sector_name, emissions, indent, page, bold=False, active=Fals
         attrs['href'] = page.path
     style = {}
     if indent:
-        style = {'margin-left': '2rem'}
+        style = {'marginLeft': '2rem'}
     if bold:
-        style = {'font-weight': 'bold'}
+        style = {'fontWeight': 'bold'}
 
     if active:
         attrs['active'] = True

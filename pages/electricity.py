@@ -4,17 +4,17 @@ from dash.dependencies import Input, Output
 
 from variables import set_variable, get_variable
 from calc.electricity import predict_electricity_consumption_emissions
-from components.cards import make_graph_card
+from components.cards import GraphCard, ConnectedCardGrid
 from components.graphs import PredictionGraph
 
 from .base import Page
 
 
 def render_page():
-    rows = []
+    grid = ConnectedCardGrid()
 
-    card = make_graph_card(
-        card_id='electricity-consumption-per-capita',
+    per_capita_card = GraphCard(
+        id='electricity-consumption-per-capita',
         slider=dict(
             min=-50,
             max=20,
@@ -23,15 +23,25 @@ def render_page():
             marks={x: '%d %%' % (x / 10) for x in range(-50, 20 + 1, 10)},
         )
     )
-    rows.append(dbc.Row(dbc.Col(card, md=8)))
+    grid.make_new_row()
+    grid.add_card(per_capita_card)
 
-    card = make_graph_card(card_id='electricity-consumption')
-    rows.append(dbc.Row(dbc.Col(card, md=8)))
+    consumption_card = GraphCard(id='electricity-consumption')
+    emission_factor_card = GraphCard(id='electricity-consumption-emission-factor')
+    per_capita_card.connect_to(consumption_card)
 
-    card = make_graph_card(card_id='electricity-consumption-emissions')
-    rows.append(dbc.Row(dbc.Col(card, md=8)))
+    grid.make_new_row()
+    grid.add_card(consumption_card)
+    grid.add_card(emission_factor_card)
 
-    return html.Div(rows)
+    emission_card = GraphCard(id='electricity-consumption-emissions')
+    consumption_card.connect_to(emission_card)
+    emission_factor_card.connect_to(emission_card)
+
+    grid.make_new_row()
+    grid.add_card(emission_card)
+
+    return grid.render()
 
 
 page = Page(
@@ -44,6 +54,7 @@ page = Page(
     outputs=[
         Output('electricity-consumption-per-capita-graph', 'figure'),
         Output('electricity-consumption-graph', 'figure'),
+        Output('electricity-consumption-emission-factor-graph', 'figure'),
         Output('electricity-consumption-emissions-graph', 'figure'),
     ],
     inputs=[Input('electricity-consumption-per-capita-slider', 'value')]
@@ -58,20 +69,29 @@ def electricity_consumption_callback(value):
         unit_name='kWh/as.'
     )
     graph.add_series(df=df, trace_name='Sähkönkulutus/as.', column_name='ElectricityConsumptionPerCapita')
-    fig1 = graph.get_figure()
+    per_capita_fig = graph.get_figure()
 
     graph = PredictionGraph(
         sector_name='ElectricityConsumption', title='Kulutussähkön kulutus',
         unit_name='GWh',
     )
     graph.add_series(df=df, trace_name='Sähkönkulutus', column_name='ElectricityConsumption')
-    fig2 = graph.get_figure()
+    consumption_fig = graph.get_figure()
+
+    graph = PredictionGraph(
+        sector_name='ElectricityConsumption', title='Sähköntuotannon päästökerroin',
+        unit_name='g/kWh',
+        smoothing=True,
+    )
+    graph.add_series(df=df, trace_name='Päästökerroin', column_name='EmissionFactor')
+    factor_fig = graph.get_figure()
+    print(factor_fig)
 
     graph = PredictionGraph(
         sector_name='ElectricityConsumption', title='Kulutussähkön päästöt',
         unit_name='kt (CO2e)', smoothing=True,
     )
     graph.add_series(df=df, trace_name='Päästöt', column_name='Emissions')
-    fig3 = graph.get_figure()
+    emission_fig = graph.get_figure()
 
-    return [fig1, fig2, fig3]
+    return [per_capita_fig, consumption_fig, factor_fig, emission_fig]

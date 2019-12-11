@@ -2,7 +2,6 @@ from dash_archer import DashArcherContainer, DashArcherElement
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-import pandas as pd
 import numpy as np
 from dash.dependencies import Input, Output
 from babel.numbers import format_decimal
@@ -12,7 +11,7 @@ from calc.district_heating_consumption import predict_district_heat_consumption
 from variables import set_variable, get_variable
 from components.stickybar import StickyBar
 from components.graphs import PredictionGraph
-from components.cards import make_graph_card
+from components.cards import GraphCard, ConnectedCardGrid
 from utils.colors import ARCHER_STROKE, GHG_MAIN_SECTOR_COLORS
 from .base import Page
 
@@ -72,7 +71,7 @@ def draw_district_heat_consumption_emissions(df):
     graph = PredictionGraph(
         sector_name='BuildingHeating',
         unit_name='kt', title='Kaukolämmön kulutuksen päästöt',
-        smoothing=True,
+        smoothing=True, allow_nonconsecutive_years=True
     )
     graph.add_series(
         df=df, column_name='District heat consumption emissions', trace_name='Päästöt'
@@ -114,82 +113,50 @@ def make_bottom_bar(df):
 
 
 def generate_page():
-    rows = []
+    grid = ConnectedCardGrid()
 
-    existing_card = DashArcherElement([
-        make_graph_card(
-            card_id='district-heating-existing-building-unit-heat-factor',
-            slider=dict(
-                min=-60,
-                max=20,
-                step=5,
-                value=get_variable('district_heating_existing_building_efficiency_change') * 10,
-                marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 10)},
-            ),
-            borders=dict(bottom=True),
+    existing_card = GraphCard(
+        id='district-heating-existing-building-unit-heat-factor',
+        slider=dict(
+            min=-60,
+            max=20,
+            step=5,
+            value=get_variable('district_heating_existing_building_efficiency_change') * 10,
+            marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 10)},
         )
-    ], id='district-heating-existing-building-unit-heat-factor-elem', relations=[{
-        'targetId': 'district-heating-consumption-elem',
-        'targetAnchor': 'top',
-        'sourceAnchor': 'bottom',
-    }])
-
-    new_card = DashArcherElement([
-        make_graph_card(
-            card_id='district-heating-new-building-unit-heat-factor',
-            slider=dict(
-                min=-60,
-                max=20,
-                step=5,
-                value=get_variable('district_heating_new_building_efficiency_change') * 10,
-                marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 10)},
-            ),
-            borders=dict(bottom=True),
-        )
-    ], id='district-heating-new-building-unit-heat-factor-elem', relations=[{
-        'targetId': 'district-heating-consumption-elem',
-        'targetAnchor': 'top',
-        'sourceAnchor': 'bottom',
-    }])
-
-    rows.append(dbc.Row([dbc.Col(md=10, children=[
-        dbc.Row([
-            dbc.Col(existing_card, md=6),
-            dbc.Col(new_card, md=6),
-        ])
-    ])]))
-
-    consumption_card = DashArcherElement([
-        dbc.Card(dbc.CardBody([
-            dcc.Graph(id='district-heating-consumption-graph'),
-            html.Div(id='district-heating-unit-emissions-card'),
-        ]), className="mb-4 card-border-top card-border-bottom")
-    ], id='district-heating-consumption-elem', relations=[{
-        'sourceAnchor': 'bottom',
-        'targetId': 'district-heating-consumption-emissions-elem',
-        'targetAnchor': 'top',
-    }])
-    rows.append(dbc.Row([
-        dbc.Col(consumption_card, md=10),
-    ]))
-
-    emissions_card = DashArcherElement([
-        dbc.Card(dbc.CardBody([
-            dcc.Graph(id='district-heating-consumption-emissions'),
-        ]), className="mb-4 card-border-top"),
-    ], id='district-heating-consumption-emissions-elem')
-    rows.append(dbc.Row([
-        dbc.Col(md=10, children=emissions_card),
-    ], className="page-content-wrapper"))
-    rows.append(html.Div(id='district-heating-sticky-page-summary-container'))
-
-    return DashArcherContainer(
-        [html.Div(rows)],
-        strokeColor=ARCHER_STROKE['default']['color'],
-        strokeWidth=ARCHER_STROKE['default']['width'],
-        arrowLength=0.001,
-        arrowThickness=0.001,
     )
+    new_card = GraphCard(
+        id='district-heating-new-building-unit-heat-factor',
+        slider=dict(
+            min=-60,
+            max=20,
+            step=5,
+            value=get_variable('district_heating_new_building_efficiency_change') * 10,
+            marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 10)},
+        ),
+    )
+    row = grid.make_new_row()
+    row.add_card(existing_card)
+    row.add_card(new_card)
+
+    consumption_card = GraphCard(
+        id='district-heating-consumption',
+        extra_content=html.Div(id='district-heating-unit-emissions-card')
+    )
+    existing_card.connect_to(consumption_card)
+    new_card.connect_to(consumption_card)
+    row = grid.make_new_row()
+    row.add_card(consumption_card)
+
+    emissions_card = GraphCard(id='district-heating-consumption-emissions')
+    consumption_card.connect_to(emissions_card)
+    row = grid.make_new_row()
+    row.add_card(emissions_card)
+
+    return html.Div([
+        grid.render(),
+        html.Div(id='district-heating-sticky-page-summary-container')
+    ])
 
 
 page = Page(
@@ -209,7 +176,7 @@ page = Page(
     Output('district-heating-new-building-unit-heat-factor-graph', 'figure'),
     Output('district-heating-consumption-graph', 'figure'),
     Output('district-heating-unit-emissions-card', 'children'),
-    Output('district-heating-consumption-emissions', 'figure'),
+    Output('district-heating-consumption-emissions-graph', 'figure'),
     Output('district-heating-sticky-page-summary-container', 'children'),
 ])
 def district_heating_consumption_callback(existing_building_perc, new_building_perc):

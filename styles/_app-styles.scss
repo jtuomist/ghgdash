@@ -95,10 +95,10 @@ body, html {
 
 // Cards
 
-.card-border-top    {
-  border-top:    $archer-width solid $archer-color;
-  margin-top:    125px;
-}
+.card-border-top    { border-top:    $archer-width solid $archer-color; }
 .card-border-bottom { border-bottom: $archer-width solid $archer-color; }
+
+.grid-downstream-card { margin-top:   125px; }
+.grid-unconnected-downstream-card { margin-top:   125px + $archer-width; }
 
 .plot .scatter .lines { stroke-linecap: round; }

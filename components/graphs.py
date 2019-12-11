@@ -27,6 +27,7 @@ def make_layout(**kwargs):
             ),
             gridwidth=1,
             gridcolor='#ccc',
+            fixedrange=True,
         ),
         xaxis=dict(
             showgrid=False,
@@ -39,6 +40,7 @@ def make_layout(**kwargs):
             ),
             gridwidth=1,
             gridcolor='#ccc',
+            fixedrange=True
         ),
         font=dict(
             family='HelsinkiGrotesk, Open Sans, Arial'
@@ -90,6 +92,7 @@ class PredictionGraph:
     unit_name: str = None
     y_max: float = None
     smoothing: bool = False
+    allow_nonconsecutive_years: bool = False
 
     def __post_init__(self):
         self.series_list = []
@@ -104,7 +107,10 @@ class PredictionGraph:
         else:
             trace_attrs['mode'] = 'lines'
 
-        start_year = find_consecutive_start(df.index)
+        if self.allow_nonconsecutive_years:
+            start_year = df.index.min()
+        else:
+            start_year = find_consecutive_start(df.index)
 
         y_column = series.column_name
         hist_series = df.loc[~df.Forecast & (df.index >= start_year), y_column].dropna()
@@ -215,18 +221,3 @@ class PredictionGraph:
         fig = go.Figure(data=traces, layout=layout)
 
         return fig
-
-
-class ConnectedGraphGridRow:
-    def add_graph(self):
-        pass
-
-
-class ConnectedGraphGrid:
-    def __init__(self):
-        self.rows = []
-
-    def add_row(self):
-        row = ConnectedGraphGridRow()
-        self.rows.append(row)
-        return row

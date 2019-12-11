@@ -4,7 +4,7 @@ import plotly.graph_objs as go
 
 from calc.buildings import generate_building_floor_area_forecast
 from components.graphs import make_layout
-from components.cards import make_graph_card
+from components.cards import GraphCard
 from utils.colors import HELSINKI_COLORS
 from .base import Page
 
@@ -80,8 +80,8 @@ def render_page():
     fig = generate_buildings_forecast_graph()
     ret = dbc.Row([
         dbc.Col([
-            make_graph_card(card_id='buildings', graph=dict(figure=fig))
-        ])
+            GraphCard(id='buildings', graph=dict(figure=fig)).render()
+        ], md=8)
     ])
 
     return ret
