@@ -4,9 +4,11 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output
 
-from calc.solar_power import generate_solar_power_forecast
+from calc.solar_power import predict_solar_power_production
 from variables import set_variable, get_variable
-from components.graphs import make_layout
+from components.graphs import make_layout, PredictionGraph
+from components.cards import make_graph_card
+from components.stickybar import StickyBar
 from .base import Page
 
 
@@ -14,36 +16,13 @@ SOLAR_POWER_GOAL = 1009  # GWh
 CITY_OWNED = 19.0  # %
 
 
-def generate_solar_power_graph(df, label, col):
-    hist_df = df.query('~Forecast')
-    hist = go.Scatter(
-        x=hist_df.index,
-        y=hist_df[col],
-        mode='lines',
-        name='Aurinkosähkö (MWp)',
-        line=dict(
-            color='#9fc9eb',
-        )
+def generate_solar_power_graph(df, label, col, ymax):
+    graph = PredictionGraph(
+        df=df, sector_name='ElectricityConsumption', unit_name='MWp',
+        trace_name='Piikkiteho', title='%s rakennuskannan aurinkopaneelien piikkiteho' % label,
+        column_name=col, y_max=ymax
     )
-
-    forecast_df = df.query('Forecast')
-    forecast = go.Scatter(
-        x=forecast_df.index,
-        y=forecast_df[col],
-        mode='lines',
-        name='Aurinkosähkö (enn.)',
-        line=dict(
-            color='#9fc9eb',
-            dash='dash'
-        )
-    )
-
-    layout = make_layout(
-        yaxis=dict(title='MWp'),
-        showlegend=False,
-        title=label + " rakennuskannan aurinkopaneelien piikkiteho"
-    )
-    return go.Figure(data=[hist, forecast], layout=layout)
+    return graph.get_figure()
 
 
 def generate_solar_power_stacked(df):
@@ -77,7 +56,7 @@ def generate_solar_power_stacked(df):
         stackgroup='one'
     )
 
-    forecast_df = df.query('Forecast')
+    forecast_df = df[df.Forecast]
     forecast_start_year, forecast_end_year = forecast_df.index.min(), forecast_df.index.max()
 
     layout = make_layout(
@@ -88,7 +67,7 @@ def generate_solar_power_stacked(df):
         shapes=[
             dict(
                 type='rect',
-                x0=forecast_start_year-1,
+                x0=forecast_start_year - 1,
                 x1=forecast_end_year,
                 xref='x',
                 y0=0,
@@ -100,101 +79,114 @@ def generate_solar_power_stacked(df):
             )
         ]
     )
-    egwpa = (forecast_df.SolarPowerExisting.iloc[-1] - forecast_df.SolarPowerExisting.iloc[0]) / (forecast_end_year - forecast_start_year)
+    hist_df = df[~df.Forecast]
+    years_left = forecast_df.index.max() - hist_df.index.max()
+    ekwpa = (forecast_df.SolarPowerExisting.iloc[-1] - hist_df.SolarPowerExisting.iloc[-1]) / years_left
+    nkwpa = forecast_df.SolarPowerNew.iloc[-1] / years_left
 
-    return go.Figure(data=[t1, t2], layout=layout), egwpa/pv_kwh_wp
+    return go.Figure(data=[t1, t2], layout=layout), ekwpa / pv_kwh_wp, nkwpa / pv_kwh_wp
 
 
 def generate_page():
-    return html.Div([
-        dbc.Row([
-            dbc.Col(dbc.Card(dbc.CardBody([
-                html.Div([
-                    html.Div(dcc.Graph(id='solar-power-existing-buildings'), className='slider-card__graph'),
-                    html.Div(dcc.Slider(
-                        id='solar-power-existing-buildings-percentage-slider',
-                        vertical=True,
-                        min=20,
-                        max=100,
-                        step=5,
-                        value=get_variable('solar_power_existing_buildings_percentage'),
-                        marks={x: '%d %%' % x for x in range(20, 100 + 1, 5)},
-                        className='mb-4'
-                    ), className='slider-card__slider'),
-                ], className="slider-card__content"),
+    rows = []
+    card = make_graph_card(
+        card_id='solar-power-existing-buildings',
+        slider=dict(
+            min=0,
+            max=90,
+            step=5,
+            value=get_variable('solar_power_existing_buildings_percentage'),
+            marks={x: '%d %%' % x for x in range(0, 90 + 1, 10)},
+        ),
+        extra_content=html.Div(id='solar-power-existing-kwpa'),
+    )
+    card2 = make_graph_card(
+        card_id='solar-power-new-buildings',
+        slider=dict(
+            min=20,
+            max=100,
+            step=5,
+            value=get_variable('solar_power_new_buildings_percentage'),
+            marks={x: '%d %%' % x for x in range(20, 100 + 1, 10)},
+        ),
+        extra_content=html.Div(id='solar-power-new-kwpa'),
+    )
 
-                html.Div([
-                    html.Span("Kaupungin tulisi rakentaa aurinkopaneeleja "),
-                    html.Span(id='solar-power-city-gwp'),
-                    html.Span(" vuodessa skenaarion toteutumiseksi."),
-                ])
-            ]), className="mb-4"), md=6),
+    rows.append(dbc.Row([
+        dbc.Col(card, md=6),
+        dbc.Col(card2, md=6)
+    ]))
 
-            dbc.Col(dbc.Card(dbc.CardBody(html.Div([
-                html.Div(dcc.Graph(id='solar-power-new-buildings'), className='slider-card__graph'),
-                html.Div(dcc.Slider(
-                    id='solar-power-new-buildings-percentage-slider',
-                    vertical=True,
-                    min=20,
-                    max=100,
-                    step=5,
-                    value=get_variable('solar_power_new_buildings_percentage'),
-                    marks={x: '%d %%' % x for x in range(20, 100 + 1, 5)},
-                    className='mb-4'
-                ), className='slider-card__slider'),
-            ], className="slider-card__content")), className="mb-4"), md=6),
-        ]),
+    card = make_graph_card(card_id='solar-power-total')
+    rows.append(dbc.Row(dbc.Col(card, md=6, className='offset-md-3')))
 
-        dbc.Row([
-            dbc.Col(dbc.Card(dbc.CardBody([
-                dcc.Graph(id='solar-power-total'),
-                #html.Div(id='solar-power-total-card'),
-            ]), className="mb-4"), md=6, className='offset-md-3'),
-        ]),
-
-        html.Div(id='solar-power-sticky-page-summary-container'),
-    ])
+    return html.Div([*rows, html.Div(id='solar-power-sticky-page-summary-container')])
 
 
-page = Page(id='pv-production', name='Aurinkosähkön tuotanto', path='/aurinkopaneelit', content=generate_page)
+page = Page(
+    id='pv-production',
+    name='Aurinkosähkön tuotanto',
+    path='/aurinkopaneelit',
+    emission_sector=['ElectricityConsumption', None],
+    content=generate_page
+)
 
 
 @page.callback(
     outputs=[
-        Output('solar-power-existing-buildings', 'figure'),
-        Output('solar-power-new-buildings', 'figure'),
-        Output('solar-power-total', 'figure'),
-        Output('solar-power-city-gwp', 'children'),
+        Output('solar-power-existing-buildings-graph', 'figure'),
+        Output('solar-power-new-buildings-graph', 'figure'),
+        Output('solar-power-total-graph', 'figure'),
+        Output('solar-power-existing-kwpa', 'children'),
+        Output('solar-power-new-kwpa', 'children'),
         Output('solar-power-sticky-page-summary-container', 'children'),
     ], inputs=[
-        Input('solar-power-existing-buildings-percentage-slider', 'value'),
-        Input('solar-power-new-buildings-percentage-slider', 'value'),
+        Input('solar-power-existing-buildings-slider', 'value'),
+        Input('solar-power-new-buildings-slider', 'value'),
     ]
 )
 def solar_power_callback(existing_building_perc, new_building_perc):
+    set_variable('solar_power_existing_buildings_percentage', 100)
+    set_variable('solar_power_new_buildings_percentage', 100)
+    kwp_max = predict_solar_power_production()
+
     set_variable('solar_power_existing_buildings_percentage', existing_building_perc)
     set_variable('solar_power_new_buildings_percentage', new_building_perc)
+    kwp_df = predict_solar_power_production()
 
-    kwp_df = generate_solar_power_forecast()
-    fig_old = generate_solar_power_graph(kwp_df, "Vanhan", "SolarPowerExisting")
-    fig_new = generate_solar_power_graph(kwp_df, "Uuden", "SolarPowerNew")
-    fig_tot, egwpa = generate_solar_power_stacked(kwp_df)
+    ymax = kwp_max.SolarPowerExisting.iloc[-1]
+    fig_old = generate_solar_power_graph(kwp_df, "Vanhan", "SolarPowerExisting", ymax)
+    ymax = kwp_max.SolarPowerNew.iloc[-1]
+    fig_new = generate_solar_power_graph(kwp_df, "Uuden", "SolarPowerNew", ymax)
+    fig_tot, ekwpa, nkwpa = generate_solar_power_stacked(kwp_df)
 
     s = kwp_df.SolarPowerAll
     forecast = s.iloc[-1] * get_variable('yearly_pv_energy_production_kwh_wp')
-    if forecast >= SOLAR_POWER_GOAL:
-        sticky_class = 'page-summary__total--good'
-    else:
-        sticky_class = 'page-summary__total--bad'
 
-    city_gwp = html.Span("%d MWp" % (1000 * egwpa * CITY_OWNED / 100), className='summary-card__value')
+    existing_kwpa = html.Div([
+        html.Span("Kun aurinkopaneeleita rakennetaan "),
+        html.Span('%d %%' % existing_building_perc, className='summary-card__value'),
+        html.Span(" kaikesta vanhan rakennuskannan kattopotentiaalista, Helsingin kaupunkikonsernin tulee rakentaa aurinkopaneeleja "),
+        html.Span("%d kWp" % (1000 * ekwpa * CITY_OWNED / 100), className='summary-card__value'),
+        html.Span(" vuodessa skenaarion toteutumiseksi. Muiden kuin Helsingin kaupungin tulee rakentaa "),
+        html.Span("%d kWp" % (1000 * ekwpa * (100 - CITY_OWNED) / 100), className='summary-card__value'),
+        html.Span(" vuodessa."),
+    ])
 
-    sticky = [dbc.Alert([
-        html.H6("Aurinkosähkön tuotanto yhteensä (2035)"),
-        html.Div([
-            html.Div(["%.0f" % forecast, html.Span(" GWh / a", className="unit")], className="page-summary__total " + sticky_class),
-            html.Div(["tavoite %s" % SOLAR_POWER_GOAL, html.Span(" GWh / a", className="unit")], className="page-summary__target")
-        ], className="page-summary__totals"),
-    ], className="page-summary fixed-bottom")]
+    new_kwpa = html.Div([
+        html.Span("Kun uuteen rakennuskantaan rakennetaan aurinkopaneeleja "),
+        html.Span('%d %%' % new_building_perc, className='summary-card__value'),
+        html.Span(" kaikesta kattopotentiaalista, Helsingin kaupunkikonsernin tulee rakentaa aurinkopaneeleja "),
+        html.Span("%d kWp" % (1000 * nkwpa * CITY_OWNED / 100), className='summary-card__value'),
+        html.Span(" vuodessa skenaarion toteutumiseksi. Muiden kuin Helsingin kaupungin tulee rakentaa "),
+        html.Span("%d kWp" % (1000 * nkwpa * (100 - CITY_OWNED) / 100), className='summary-card__value'),
+        html.Span(" vuodessa."),
+    ])
 
-    return [fig_old, fig_new, fig_tot, city_gwp, sticky]
+    sticky = StickyBar(
+        label='Aurinkosähkön tuotanto',
+        value=forecast, goal=SOLAR_POWER_GOAL,
+        unit='GWh', current_page=page, below_goal_good=False,
+    )
+
+    return [fig_old, fig_new, fig_tot, existing_kwpa, new_kwpa, sticky.render()]

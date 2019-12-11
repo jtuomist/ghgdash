@@ -136,10 +136,10 @@ def make_bottom_bar(df):
     target_emissions = DISTRICT_HEATING_GOAL
 
     bar = StickyBar(
-        label="Kaukolämmön kulutuksen päästöt yhteensä",
+        label="Kaukolämmön kulutuksen päästöt",
         value=last_emissions,
         goal=target_emissions,
-        unit='kt (CO₂e.) / a',
+        unit='kt (CO₂e.)',
         current_page=page
     )
     return bar.render()

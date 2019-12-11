@@ -1,3 +1,4 @@
+from dash.development.base_component import Component
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
@@ -5,7 +6,13 @@ import dash_core_components as dcc
 from utils import deepupdate
 
 
-def make_graph_card(card_id: str, graph: dict = None, slider: dict = None, borders: dict = None) -> dbc.Card:
+def make_graph_card(
+    card_id: str,
+    graph: dict = None,
+    slider: dict = None,
+    borders: dict = None,
+    extra_content: Component = None
+) -> dbc.Card:
     els = []
     graph_attrs = {
         'config': dict(
@@ -33,7 +40,8 @@ def make_graph_card(card_id: str, graph: dict = None, slider: dict = None, borde
         card_class_name += ' card-border-bottom'
 
     return dbc.Card(
-        dbc.CardBody(
-            html.Div(els, className="slider-card__content")
-        ), className=card_class_name
+        dbc.CardBody(children=[
+            html.Div(els, className="slider-card__content"),
+            extra_content,
+        ]), className=card_class_name
     )

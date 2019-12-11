@@ -17,6 +17,7 @@ class StickyBar:
     goal: float
     unit: str
     current_page: Page = None
+    below_goal_good: bool = True
 
     def render_emissions_bar(self):
         df = generate_emissions_forecast()
@@ -30,6 +31,7 @@ class StickyBar:
         page = self.current_page
         for sector_name, emissions in reductions.iteritems():
             sector_metadata = SECTORS[sector_name]
+            print(page.emission_sector, sector_name)
             if page is not None and page.emission_sector is not None and \
                     page.emission_sector[0] == sector_name:
                 active = True
@@ -101,7 +103,8 @@ class StickyBar:
         return graph
 
     def render(self):
-        if self.value <= self.goal:
+        if (self.value <= self.goal and self.below_goal_good) or \
+                (self.value >= self.goal and not self.below_goal_good):
             sticky_class = 'page-summary__total--good'
         else:
             sticky_class = 'page-summary__total--bad'

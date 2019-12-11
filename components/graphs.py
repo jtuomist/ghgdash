@@ -69,6 +69,7 @@ class PredictionGraph:
     historical_color: str = None
     forecast_color: str = None
     smoothing: bool = False
+    y_max: float = None
 
     def __post_init__(self,):
         df = self.df
@@ -140,12 +141,18 @@ class PredictionGraph:
                 **line_attrs,
             )
         )
-        traces.append(forecast_trace)
+        traces.insert(0, forecast_trace)
+
+        yattrs = {}
+        if self.y_max:
+            yattrs['fixedrange'] = True
+            yattrs['range'] = [0, self.y_max]
 
         layout = make_layout(
             title=self.title,
             yaxis=dict(
-                title=self.unit_name
+                title=self.unit_name,
+                **yattrs,
             ),
             xaxis=dict(
                 # type='linear',
@@ -153,7 +160,7 @@ class PredictionGraph:
             ),
         )
 
-        fig = go.Figure(data=[hist_trace, forecast_trace], layout=layout)
+        fig = go.Figure(data=traces, layout=layout)
 
         return fig
 
