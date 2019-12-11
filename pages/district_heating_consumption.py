@@ -7,14 +7,11 @@ import plotly.graph_objs as go
 from dash.dependencies import Input, Output
 from babel.numbers import format_decimal
 
-from calc.district_heating import calc_district_heating_unit_emissions_forecast
-from calc.district_heating_consumption import (
-    generate_heat_consumption_forecast, generate_heat_use_per_net_area_forecast_existing_buildings,
-    generate_heat_use_per_net_area_forecast_new_buildings
-)
+from calc.district_heating import predict_district_heating_emissions
+from calc.district_heating_consumption import predict_district_heat_consumption
 from variables import set_variable, get_variable
 from components.stickybar import StickyBar
-from components.graphs import make_layout
+from components.graphs import make_layout, PredictionGraph
 from components.cards import make_graph_card
 from utils.colors import ARCHER_STROKE, GHG_MAIN_SECTOR_COLORS
 from .base import Page
@@ -27,75 +24,28 @@ EXISTING_BUILDINGS_FORECAST_COLOR = '#ff6c38'
 NEW_BUILDINGS_COLOR = '#ffb59b'
 
 
-def draw_existing_building_unit_heat_factor_graph():
-    df = generate_heat_use_per_net_area_forecast_existing_buildings()
-
-    hist_df = df[~df.Forecast]
-    hist = go.Scatter(
-        x=hist_df.index,
-        y=hist_df.HeatUsePerNetArea,
-        hovertemplate='%{x}: %{y:.0f} kWh/k-m²',
-        mode='lines',
-        name='Ominaislämmönkulutus',
-        line=dict(
-            color=EXISTING_BUILDINGS_HIST_COLOR,
-        )
+def draw_existing_building_unit_heat_factor_graph(df):
+    graph = PredictionGraph(
+        df=df, sector_name='BuildingHeating', column_name='ExistingBuildingHeatUsePerNetArea',
+        unit_name='kWh/k-m²', trace_name='Ominaislämmönkulutus',
+        title='Olemassaolevan rakennuskannan ominaislämmönkulutus',
+        historical_color=EXISTING_BUILDINGS_HIST_COLOR,
+        forecast_color=EXISTING_BUILDINGS_FORECAST_COLOR
     )
+    return graph.get_figure()
 
-    forecast_df = df[df.Forecast | (df.index == hist_df.index.max())]
-    forecast = go.Scatter(
-        x=forecast_df.index,
-        y=forecast_df.HeatUsePerNetArea,
-        hovertemplate='%{x}: %{y:.0f} kWh/k-m²',
-        mode='lines',
-        name='Ominaislämmönkulutus (enn.)',
-        line=dict(
-            color=EXISTING_BUILDINGS_FORECAST_COLOR,
-            dash='dash'
-        )
+
+def draw_new_building_unit_heat_factor_graph(df):
+    graph = PredictionGraph(
+        df=df, sector_name='BuildingHeating', column_name='NewBuildingHeatUsePerNetArea',
+        unit_name='kWh/k-m²', trace_name='Ominaislämmönkulutus',
+        title='Uuden rakennuskannan ominaislämmönkulutus',
+        forecast_color=NEW_BUILDINGS_COLOR
     )
-    layout = make_layout(
-        yaxis=dict(
-            title='kWh/k-m²',
-        ),
-        showlegend=False,
-        title="Olemassaolevan rakennuskannan ominaislämmönkulutus"
-    )
-
-    fig = go.Figure(data=[hist, forecast], layout=layout)
-    return fig
+    return graph.get_figure()
 
 
-def draw_new_building_unit_heat_factor_graph():
-    df = generate_heat_use_per_net_area_forecast_new_buildings()
-
-    # forecast_df = df.query('Forecast')
-    forecast_df = df
-    forecast = go.Scatter(
-        x=forecast_df.index,
-        y=forecast_df,
-        hovertemplate='%{x}: %{y:.0f} kWh/k-m²',
-        mode='lines',
-        name='Ominaislämmönkulutus (enn.)',
-        line=dict(
-            color=NEW_BUILDINGS_COLOR,
-            dash='dash'
-        )
-    )
-    layout = make_layout(
-        yaxis=dict(
-            title='kWh/k-m²',
-        ),
-        title="Uuden rakennuskannan ominaislämmönkulutus"
-    )
-
-    fig = go.Figure(data=[forecast], layout=layout)
-    return fig
-
-
-def draw_heat_consumption():
-    df = generate_heat_consumption_forecast()
-
+def draw_heat_consumption(df):
     hist_df = df[~df.Forecast]
     t1h = go.Scatter(
         x=hist_df.index,
@@ -154,64 +104,12 @@ def draw_heat_consumption():
 
 
 def draw_district_heat_consumption_emissions(df):
-    hist_df = df[~df.Forecast]
-    last_hist_year = hist_df.index.max()
-    hist = go.Scatter(
-        x=hist_df.index,
-        y=hist_df['District heat consumption emissions'],
-        mode='lines',
-        name='Päästöt',
-        hovertemplate='%{x}: %{y:.0f} kt',
-        line=dict(
-            color=GHG_MAIN_SECTOR_COLORS['BuildingHeating'],
-            shape='spline',
-            smoothing=1,
-        )
+    graph = PredictionGraph(
+        df=df, sector_name='BuildingHeating', column_name='District heat consumption emissions',
+        unit_name='kt', trace_name='Päästöt', title='Kaukolämmön kulutuksen päästöt',
+        smoothing=True,
     )
-
-    forecast_df = df.loc[df.Forecast | (df.index == last_hist_year)]
-    forecast = go.Scatter(
-        x=forecast_df.index,
-        y=forecast_df['District heat consumption emissions'],
-        mode='lines',
-        hovertemplate='%{x}: %{y:.0f} kt',
-        name='Päästöt (enn.)',
-        line=dict(
-            color=GHG_MAIN_SECTOR_COLORS['BuildingHeating'],
-            dash='dash',
-            shape='spline',
-            smoothing=1,
-        )
-    )
-
-    goal_df = pd.DataFrame(
-        [hist_df.iloc[-1]['District heat consumption emissions'], DISTRICT_HEATING_GOAL],
-        index=[hist_df.index.max(), 2035]
-    )
-    goal_df = goal_df.reindex(range(goal_df.index.min(), goal_df.index.max() + 1))
-    goal_df = goal_df.interpolate()
-
-    goal_trace = go.Scatter(
-        x=goal_df.index,
-        y=goal_df,
-        mode='lines',
-        hovertemplate='%{x}: %{y:.0f}',
-        name='Tavoite',
-        line=dict(
-            color='grey',
-            dash='dash'
-        )
-    )
-
-    layout = make_layout(
-        yaxis=dict(
-            title='kt (CO₂e.)',
-        ),
-        title="Kaukolämmön kulutuksen päästöt"
-    )
-
-    fig = go.Figure(data=[hist, forecast, goal_trace], layout=layout)
-    return fig
+    return graph.get_figure()
 
 
 def make_unit_emissions_card(df):
@@ -286,10 +184,12 @@ def generate_page():
         'sourceAnchor': 'bottom',
     }])
 
-    rows.append(dbc.Row([
-        dbc.Col(existing_card, md=6),
-        dbc.Col(new_card, md=6),
-    ]))
+    rows.append(dbc.Row([dbc.Col(md=10, children=[
+        dbc.Row([
+            dbc.Col(existing_card, md=6),
+            dbc.Col(new_card, md=6),
+        ])
+    ])]))
 
     consumption_card = DashArcherElement([
         dbc.Card(dbc.CardBody([
@@ -302,7 +202,7 @@ def generate_page():
         'targetAnchor': 'top',
     }])
     rows.append(dbc.Row([
-        dbc.Col(consumption_card, md=6, className='offset-md-3'),
+        dbc.Col(consumption_card, md=10),
     ]))
 
     emissions_card = DashArcherElement([
@@ -311,7 +211,7 @@ def generate_page():
         ]), className="mb-4 card-border-top"),
     ], id='district-heating-consumption-emissions-elem')
     rows.append(dbc.Row([
-        dbc.Col(md=8, className='offset-md-2', children=emissions_card),
+        dbc.Col(md=10, children=emissions_card),
     ], className="page-content-wrapper"))
     rows.append(html.Div(id='district-heating-sticky-page-summary-container'))
 
@@ -348,14 +248,14 @@ def district_heating_consumption_callback(existing_building_perc, new_building_p
     set_variable('district_heating_existing_building_efficiency_change', existing_building_perc / 10)
     set_variable('district_heating_new_building_efficiency_change', new_building_perc / 10)
 
-    fig1 = draw_existing_building_unit_heat_factor_graph()
-    fig2 = draw_new_building_unit_heat_factor_graph()
-    fig3 = draw_heat_consumption()
+    df = predict_district_heat_consumption()
+    fig1 = draw_existing_building_unit_heat_factor_graph(df)
+    fig2 = draw_new_building_unit_heat_factor_graph(df)
+    fig3 = draw_heat_consumption(df)
 
-    df1, df2 = calc_district_heating_unit_emissions_forecast()
-    unit_emissions_card = make_unit_emissions_card(df1)
-
-    fig4 = draw_district_heat_consumption_emissions(df1)
-    sticky = make_bottom_bar(df1)
+    df = predict_district_heating_emissions()
+    unit_emissions_card = make_unit_emissions_card(df)
+    fig4 = draw_district_heat_consumption_emissions(df)
+    sticky = make_bottom_bar(df)
 
     return [fig1, fig2, fig3, unit_emissions_card, fig4, sticky]

@@ -67,7 +67,8 @@ def electricity_consumption_callback(value):
 
     graph = PredictionGraph(
         df, sector_name='ElectricityConsumption', title='Kulutussähkön päästöt',
-        trace_name='Päästöt', unit_name='kt (CO2e)', column_name='Emissions'
+        trace_name='Päästöt', unit_name='kt (CO2e)', column_name='Emissions',
+        smoothing=True,
     )
     fig3 = graph.get_figure()
 

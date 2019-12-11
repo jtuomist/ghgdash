@@ -4,7 +4,7 @@ import scipy.stats
 
 from . import calcfunc
 from .electricity import predict_electricity_emission_factor
-from .district_heating_consumption import generate_heat_consumption_forecast
+from .district_heating_consumption import predict_district_heat_consumption
 
 from common.units import convert_units
 
@@ -189,7 +189,7 @@ def generate_fuel_use_forecast(fuel_df, production_forecast, target_year, target
         dh_fuel_df='jyrjola/energiateollisuus/district_heating_fuel',
         dh_production_df='jyrjola/energiateollisuus/district_heating_production',
     ),
-    funcs=[generate_heat_consumption_forecast]
+    funcs=[predict_district_heat_consumption]
 )
 def calc_district_heating_unit_emissions_forecast(variables, datasets):
     operator = variables['operator']
@@ -211,7 +211,7 @@ def calc_district_heating_unit_emissions_forecast(variables, datasets):
     production_df = df
 
     heat_pump_share = target_ratios.get('Lämpöpumput') / 100
-    df = generate_heat_consumption_forecast()
+    df = predict_district_heat_consumption()
     demand_forecast = df[df.Forecast].TotalHeatConsumption
     production_forecast = generate_production_forecast(
         production_df, target_year, demand_forecast, heat_pump_share

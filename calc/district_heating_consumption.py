@@ -81,7 +81,7 @@ def generate_heat_use_per_net_area_forecast_new_buildings(variables):
         generate_heat_use_per_net_area_forecast_new_buildings
     ]
 )
-def generate_heat_consumption_forecast(variables, datasets):
+def predict_district_heat_consumption(variables, datasets):
     net_area = generate_building_floor_area_forecast()
     existing_heating_factor = generate_heat_use_per_net_area_forecast_existing_buildings()
     future_heating_factor = generate_heat_use_per_net_area_forecast_new_buildings()
@@ -97,8 +97,11 @@ def generate_heat_consumption_forecast(variables, datasets):
     net_area.name = 'NetArea'
     df = pd.DataFrame(net_area)
     df['Forecast'] = forecast
-    last_measured_area = df.loc[~df.Forecast, 'NetArea'].iloc[-1]
 
+    df['ExistingBuildingHeatUsePerNetArea'] = existing_heating_factor.HeatUsePerNetArea
+    df['NewBuildingHeatUsePerNetArea'] = future_heating_factor
+
+    last_measured_area = df.loc[~df.Forecast, 'NetArea'].iloc[-1]
     df.loc[df.Forecast, 'NewBuildingNetArea'] = df.NetArea - last_measured_area
     df.NewBuildingNetArea = df.NewBuildingNetArea.fillna(0)
     df['ExistingBuildingNetArea'] = df.NetArea - df.NewBuildingNetArea
@@ -112,4 +115,9 @@ def generate_heat_consumption_forecast(variables, datasets):
     df.loc[df.Forecast, 'ExistingBuildingHeatUse'] = forecast
 
     df['TotalHeatConsumption'] = df.ExistingBuildingHeatUse + df.NewBuildingHeatUse
+
     return df
+
+
+if __name__ == '__main__':
+    predict_district_heat_consumption()
