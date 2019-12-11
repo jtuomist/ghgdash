@@ -3,7 +3,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 import pandas as pd
-import plotly.graph_objs as go
+import numpy as np
 from dash.dependencies import Input, Output
 from babel.numbers import format_decimal
 
@@ -11,7 +11,7 @@ from calc.district_heating import predict_district_heating_emissions
 from calc.district_heating_consumption import predict_district_heat_consumption
 from variables import set_variable, get_variable
 from components.stickybar import StickyBar
-from components.graphs import make_layout, PredictionGraph
+from components.graphs import PredictionGraph
 from components.cards import make_graph_card
 from utils.colors import ARCHER_STROKE, GHG_MAIN_SECTOR_COLORS
 from .base import Page
@@ -44,75 +44,28 @@ def draw_new_building_unit_heat_factor_graph(df):
     )
     graph.add_series(
         df=df, column_name='NewBuildingHeatUsePerNetArea', trace_name='Ominaislämmönkulutus',
-        luminance_change=0.1
+        luminance_change=0.2
     )
     return graph.get_figure()
 
 
 def draw_heat_consumption(df):
+    df.loc[~df.Forecast, 'NewBuildingHeatUse'] = np.nan
     graph = PredictionGraph(
         title='Kaukolämmön kokonaiskulutus',
         unit_name='GWh',
         sector_name='BuildingHeating',
+        smoothing=True,
     )
     graph.add_series(
         df=df, column_name='ExistingBuildingHeatUse', trace_name='Vanhat rakennukset',
     )
-    hist_df = df[~df.Forecast]
-    t1h = go.Scatter(
-        x=hist_df.index,
-        y=hist_df.ExistingBuildingHeatUse,
-        mode='none',
-        fill='tozeroy',
-        name='Vanhat rakennukset',
-        hovertemplate='%{x}: %{y:.0f} GWh',
-        fillcolor=EXISTING_BUILDINGS_HIST_COLOR,
-        line=dict(
-            color=EXISTING_BUILDINGS_HIST_COLOR,
-            shape='spline',
-        ),
+    graph.add_series(
+        df=df, column_name='NewBuildingHeatUse', trace_name='Uudet rakennukset',
+        luminance_change=0.2
     )
 
-    forecast_df = df.loc[df.Forecast | (df.index == hist_df.index.max())]
-    t1f = go.Scatter(
-        x=forecast_df.index,
-        y=forecast_df.ExistingBuildingHeatUse,
-        mode='none',
-        fill='tonexty',
-        name='Vanhat rakennukset (enn.)',
-        hovertemplate='%{x}: %{y:.0f} GWh',
-        fillcolor=EXISTING_BUILDINGS_FORECAST_COLOR,
-        line=dict(
-            color=EXISTING_BUILDINGS_FORECAST_COLOR,
-            shape='spline',
-        ),
-        stackgroup='one'
-    )
-
-    new_building_heat_use = forecast_df.NewBuildingHeatUse
-    t2 = go.Scatter(
-        x=new_building_heat_use.index,
-        y=new_building_heat_use,
-        mode='none',
-        name='Uudet rakennukset',
-        hovertemplate='%{x}: %{y:.0f} GWh',
-        fillcolor=NEW_BUILDINGS_COLOR,
-        line=dict(
-            color=NEW_BUILDINGS_COLOR,
-            shape='spline',
-            smoothing=1,
-        ),
-        stackgroup='one'
-    )
-    layout = make_layout(
-        yaxis=dict(
-            title='GWh',
-        ),
-        title="Kaukolämmön kokonaiskulutus",
-    )
-
-    fig = go.Figure(data=[t1h, t1f, t2], layout=layout)
-    return fig
+    return graph.get_figure()
 
 
 def draw_district_heat_consumption_emissions(df):

@@ -54,22 +54,24 @@ def electricity_consumption_callback(value):
     df = predict_electricity_consumption_emissions()
 
     graph = PredictionGraph(
-        df, sector_name='ElectricityConsumption', title='Sähkönkulutus asukasta kohti',
-        trace_name='Sähkönkulutus/as.', unit_name='kWh/as.', column_name='ElectricityConsumptionPerCapita'
+        sector_name='ElectricityConsumption', title='Sähkönkulutus asukasta kohti',
+        unit_name='kWh/as.'
     )
+    graph.add_series(df=df, trace_name='Sähkönkulutus/as.', column_name='ElectricityConsumptionPerCapita')
     fig1 = graph.get_figure()
 
     graph = PredictionGraph(
-        df, sector_name='ElectricityConsumption', title='Kulutussähkön kulutus',
-        trace_name='Sähkönkulutus', unit_name='GWh', column_name='ElectricityConsumption'
+        sector_name='ElectricityConsumption', title='Kulutussähkön kulutus',
+        unit_name='GWh',
     )
+    graph.add_series(df=df, trace_name='Sähkönkulutus', column_name='ElectricityConsumption')
     fig2 = graph.get_figure()
 
     graph = PredictionGraph(
-        df, sector_name='ElectricityConsumption', title='Kulutussähkön päästöt',
-        trace_name='Päästöt', unit_name='kt (CO2e)', column_name='Emissions',
-        smoothing=True,
+        sector_name='ElectricityConsumption', title='Kulutussähkön päästöt',
+        unit_name='kt (CO2e)', smoothing=True,
     )
+    graph.add_series(df=df, trace_name='Päästöt', column_name='Emissions')
     fig3 = graph.get_figure()
 
     return [fig1, fig2, fig3]

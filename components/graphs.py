@@ -155,14 +155,19 @@ class PredictionGraph:
                 color = Color(GHG_MAIN_SECTOR_COLORS[self.sector_name])
                 if series.luminance_change:
                     color.set_luminance(color.get_luminance() * (1 + series.luminance_change))
-                # Lighten forecast series by 10 %
-                color.set_luminance(color.get_luminance() * 1.1)
+
+                # Lighten forecast series by 30 %
+                luminance = color.get_luminance()
+                luminance = luminance + (1 - color.get_luminance()) * .3
+                color.set_luminance(luminance)
             else:
                 color = Color(series.forecast_color)
 
             if has_multiple_series:
                 trace_attrs['fillcolor'] = color.hex
                 trace_attrs['stackgroup'] = 'forecast'
+            else:
+                line_attrs['dash'] = 'dash'
 
             forecast_trace = go.Scatter(
                 x=forecast_series.index.astype(str),
@@ -171,7 +176,6 @@ class PredictionGraph:
                 hovertemplate=hovertemplate,
                 line=dict(
                     color=color.hex,
-                    dash='dash',
                     **line_attrs,
                 ),
                 **trace_attrs
