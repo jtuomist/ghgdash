@@ -100,3 +100,5 @@ body, html {
   margin-top:    125px;
 }
 .card-border-bottom { border-bottom: $archer-width solid $archer-color; }
+
+.plot .scatter .lines { stroke-linecap: round; }
