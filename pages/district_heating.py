@@ -8,46 +8,25 @@ from dash_table.Format import Format, Scheme
 from dash.dependencies import Input, Output
 
 from calc.district_heating import calc_district_heating_unit_emissions_forecast
+from components.cards import GraphCard
+from components.graphs import PredictionGraph
 from variables import get_variable, set_variable
 from .base import Page
 
 
 def generate_district_heating_forecast_graph(df):
-    COL_NAME = 'District heat consumption emissions'
-    hist = df[~df.Forecast]
-    hist_trace = go.Bar(
-        x=hist.index, y=hist[COL_NAME], name='Päästöt (mitattu)',
-        marker=dict(color='#007bff')
-    )
-
-    forecast = df[df.Forecast]
-    forecast_trace = go.Bar(
-        x=forecast.index, y=forecast[COL_NAME], name='Päästöt (ennuste)',
-        marker=dict(color='#aad3ff')
-    )
-
-    layout = go.Layout(
+    graph = PredictionGraph(
+        sector_name='BuildingHeating',
+        unit_name='kt',
         title='Kaukolämmön kulutuksen päästöt',
-        yaxis=dict(
-            title='kt (CO₂e.)',
-            hoverformat='.3r',
-        ),
-        margin=go.layout.Margin(
-            t=30,
-            r=15,
-            l=40,
-        ),
-        # showlegend=False,
-        legend=dict(
-            x=0.9,
-            y=1,
-        )
+        smoothing=True,
+        allow_nonconsecutive_years=True,
+    )
+    graph.add_series(
+        df=df, column_name='District heat consumption emissions', trace_name='Päästöt',
     )
 
-    return go.Figure(
-        data=[hist_trace, forecast_trace],
-        layout=layout
-    )
+    return graph.get_figure()
 
 
 def generate_production_mix_graph(df):
@@ -142,59 +121,50 @@ def generate_ratio_sliders():
     return eles
 
 
-district_heat_page_content = dbc.Row([
-    dbc.Col([
-        dcc.Graph(id='district-heating-graph'),
-        html.Div(id='district-heating-table-container'),
-    ], md=8),
-    dbc.Col([
-        html.H5('Biopolttoaineen päästökerroin'),
-        html.Small('(suhteessa fysikaaliseen päästökertoimeen)'),
-        dcc.Slider(
-            id='bio-emission-factor',
-            value=get_variable('bio_emission_factor'),
-            min=0,
-            max=150,
-            step=10,
-            marks={x: '%d %%' % x for x in range(0, 150 + 1, 25)}
-        ),
-        html.H5('Kaukolämmön kulutus', className='mt-4'),
-        dcc.Slider(
-            id='district-heating-demand-slider',
-            min=-75,
-            max=25,
-            step=5,
-            value=0,
-            marks={x: '%d %%' % x for x in range(-75, 25 + 1, 25)},
-        ),
-        *generate_ratio_sliders(),
-        html.H5('Tuotantotapaosuudet 2035', className='mt-4'),
-        dcc.Graph(id='district-heating-production-source-graph'),
-    ], md=4),
-])
+def render_page():
+    content = dbc.Row([
+        dbc.Col([
+            GraphCard(id='district-heating-production').render(),
+            html.Div(id='district-heating-table-container'),
+        ], md=8),
+        dbc.Col([
+            html.H5('Biopolttoaineen päästökerroin'),
+            html.Small('(suhteessa fysikaaliseen päästökertoimeen)'),
+            dcc.Slider(
+                id='bio-emission-factor',
+                value=get_variable('bio_emission_factor'),
+                min=0,
+                max=150,
+                step=10,
+                marks={x: '%d %%' % x for x in range(0, 150 + 1, 25)}
+            ),
+            *generate_ratio_sliders(),
+            html.H5('Tuotantotapaosuudet 2035', className='mt-4'),
+            dcc.Graph(id='district-heating-production-source-graph'),
+        ], md=4),
+    ])
+    return content
 
 
 page = Page(
     id='district-heat-production',
     name='Kaukolämmön tuotanto',
-    content=district_heat_page_content,
+    content=render_page,
     path='/kaukolammon-tuotanto'
 )
 
 
 @page.callback(
     outputs=[
-        Output('district-heating-graph', 'figure'),
+        Output('district-heating-production-graph', 'figure'),
         Output('district-heating-table-container', 'children'),
         Output('district-heating-production-source-graph', 'figure'),
     ], inputs=[
-        Input('district-heating-demand-slider', 'value'),
         Input('bio-emission-factor', 'value'),
         *[Input(s.id, 'value') for s in ratio_sliders]
     ],
 )
-def district_heating_callback(demand_value, bio_emission_factor, *args):
-    set_variable('district_heating_target_demand_change', demand_value)
+def district_heating_callback(bio_emission_factor, *args):
     set_variable('bio_emission_factor', bio_emission_factor)
 
     ratios = get_variable('district_heating_target_production_ratios')
@@ -216,4 +186,4 @@ def district_heating_callback(demand_value, bio_emission_factor, *args):
 
     fuel_fig = generate_production_mix_graph(production_source)
 
-    return fig, table, fuel_fig
+    return [fig, table, fuel_fig]

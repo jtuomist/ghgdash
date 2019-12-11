@@ -189,7 +189,7 @@ def generate_fuel_use_forecast(fuel_df, production_forecast, target_year, target
         dh_fuel_df='jyrjola/energiateollisuus/district_heating_fuel',
         dh_production_df='jyrjola/energiateollisuus/district_heating_production',
     ),
-    funcs=[predict_district_heat_consumption]
+    funcs=[predict_district_heat_consumption, calculate_district_heating_unit_emissions]
 )
 def calc_district_heating_unit_emissions_forecast(variables, datasets):
     operator = variables['operator']
