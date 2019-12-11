@@ -22,7 +22,10 @@ def load_datasets(packages, include_units=False):
 
         pkg_store, root_node = store.PackageStore.find_package(None, user, root_pkg)
         if root_node is None:
-            quilt.install(package_path, force=True)
+            # Quilt seems to have a bug that loading a sub path as fragments
+            # will corrupt the local db. Load the full data set always for now.
+            #quilt.install(package_path, force=True)
+            quilt.install(user + "/" + root_pkg)
             pkg_store, root_node = store.PackageStore.find_package(None, user, root_pkg)
 
         node = root_node
