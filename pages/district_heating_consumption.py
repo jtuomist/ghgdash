@@ -1,5 +1,3 @@
-from dash_archer import DashArcherContainer, DashArcherElement
-import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 import numpy as np
@@ -12,15 +10,10 @@ from variables import set_variable, get_variable
 from components.stickybar import StickyBar
 from components.graphs import PredictionGraph
 from components.cards import GraphCard, ConnectedCardGrid
-from utils.colors import ARCHER_STROKE, GHG_MAIN_SECTOR_COLORS
 from .base import Page
 
 
 DISTRICT_HEATING_GOAL = 251
-
-EXISTING_BUILDINGS_HIST_COLOR = GHG_MAIN_SECTOR_COLORS['BuildingHeating']
-EXISTING_BUILDINGS_FORECAST_COLOR = '#ff6c38'
-NEW_BUILDINGS_COLOR = '#ffb59b'
 
 
 def draw_existing_building_unit_heat_factor_graph(df):
