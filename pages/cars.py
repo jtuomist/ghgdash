@@ -1,15 +1,13 @@
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-from dash_archer import DashArcherContainer, DashArcherElement
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 
 from variables import set_variable, get_variable
 from components.stickybar import StickyBar
 from components.graphs import make_layout, PredictionGraph
-from components.cards import make_graph_card
-from utils.colors import ARCHER_STROKE
+from components.cards import GraphCard, ConnectedCardGrid
 from .base import Page
 
 from calc.cars import generate_cars_mileage_forecast, predict_cars_emissions
@@ -36,9 +34,10 @@ def draw_bev_chart():
     layout = make_layout(
         yaxis=dict(
             title='%',
+            range=[0, 100],
         ),
         showlegend=True,
-        title="Sähkäautojen ajosuoriteosuus"
+        title="Sähköautojen ajosuoriteosuus"
     )
     return go.Figure(data=data, layout=layout)
 
@@ -61,7 +60,7 @@ def draw_emissions_chart():
     graph = PredictionGraph(
         sector_name='Transportation',
         unit_name='kt (CO₂e.)',
-        title='Henkilöautojen päästöt',
+        title='Henkilöautoilun päästöt',
     )
     graph.add_series(
         df=df, column_name='Emissions', trace_name='Päästöt',
@@ -84,71 +83,48 @@ def make_bottom_bar(df):
 
 
 def generate_page():
-    rows = []
-
-    card1 = DashArcherElement([
-        make_graph_card(
-            card_id='cars-bev-percentage',
-            slider=dict(
-                min=0,
-                max=100,
-                step=5,
-                value=get_variable('cars_bev_percentage'),
-                marks={x: '%d %%' % x for x in range(0, 100 + 1, 5)},
-            ),
-            borders=dict(bottom=True),
-        )
-    ], id='cars-electric-cars-elem', relations=[{
-        'targetId': 'cars-emissions-elem',
-        'targetAnchor': 'top',
-        'sourceAnchor': 'bottom',
-    }])
-
-    card2 = DashArcherElement([
-        make_graph_card(
-            card_id='cars-total-mileage',
-            slider=dict(
-                min=-40,
-                max=40,
-                step=5,
-                value=get_variable('cars_mileage_adjustment'),
-                marks={x: '%d %%' % (x) for x in range(-40, 40 + 1, 5)},
-            ),
-            borders=dict(bottom=True),
-        )
-    ], id='cars-total-mileage-elem', relations=[{
-        'targetId': 'cars-emissions-elem',
-        'targetAnchor': 'top',
-        'sourceAnchor': 'bottom',
-    }])
-
-    rows.append(dbc.Row([
-        dbc.Col(card1, md=6),
-        dbc.Col(card2, md=6),
-    ]))
-
-    emissions_card = DashArcherElement([
-        dbc.Card(dbc.CardBody([
-            dcc.Graph(id='cars-emissions-graph'),
-        ]), className="mb-4 card-border-top"),
-    ], id='cars-emissions-elem')
-    rows.append(dbc.Row([
-        dbc.Col(md=8, className='offset-md-2', children=emissions_card),
-    ], className="page-content-wrapper"))
-    rows.append(html.Div(id='cars-sticky-page-summary-container'))
-
-    return DashArcherContainer(
-        [html.Div(rows)],
-        strokeColor=ARCHER_STROKE['default']['color'],
-        strokeWidth=ARCHER_STROKE['default']['width'],
-        arrowLength=0.001,
-        arrowThickness=0.001,
+    grid = ConnectedCardGrid()
+    bev_perc_card = GraphCard(
+        id='cars-bev-percentage',
+        slider=dict(
+            min=0,
+            max=100,
+            step=5,
+            value=get_variable('cars_bev_percentage'),
+            marks={x: '%d %%' % x for x in range(0, 100 + 1, 10)},
+        ),
     )
+    mileage_card = GraphCard(
+        id='cars-total-mileage',
+        slider=dict(
+            min=-40,
+            max=40,
+            step=5,
+            value=get_variable('cars_mileage_adjustment'),
+            marks={x: '%d %%' % (x) for x in range(-40, 40 + 1, 10)},
+        ),
+    )
+    grid.make_new_row()
+    grid.add_card(bev_perc_card)
+    grid.add_card(mileage_card)
+
+    grid.make_new_row()
+    emissions_card = GraphCard(
+        id='cars-emissions',
+    )
+    grid.add_card(emissions_card)
+    bev_perc_card.connect_to(emissions_card)
+    mileage_card.connect_to(emissions_card)
+
+    return html.Div([
+        grid.render(),
+        html.Div(id='cars-sticky-page-summary-container')
+    ])
 
 
 page = Page(
     id='cars',
-    name='Henkilöautojen päästöt',
+    name='Henkilöautoilun päästöt',
     content=generate_page,
     path='/autot',
     emission_sector=('Transportation', 'Cars')
