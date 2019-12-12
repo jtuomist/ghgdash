@@ -22,13 +22,6 @@ VARIABLE_DEFAULTS = {
     'population_forecast_correction': 0,  # Percent in target year
     'ghg_reductions_reference_year': 1990,
     'ghg_reductions_percentage_in_target_year': 80,
-    'ghg_reductions_weights': {
-        'heating': 39,
-        'electricity': 21,
-        'transport': 21,
-        'waste_management': 11,
-        'industry': 50
-    },
     'ghg_emission_targets': [
         {
             'year': 2030,
@@ -66,8 +59,8 @@ VARIABLE_DEFAULTS = {
     },
     'district_heating_target_demand_change': 0,
 
-    'district_heating_existing_building_efficiency_change': -3.5,  # Percent per year
-    'district_heating_new_building_efficiency_change': -3.5,  # Percent per year
+    'district_heating_existing_building_efficiency_change': -2.5,  # Percent per year
+    'district_heating_new_building_efficiency_change': -2.5,  # Percent per year
 
     'electricity_production_emissions_correction': 0,
     'electricity_consumption_per_capita_adjustment': 0.0,  # Percent per year

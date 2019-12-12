@@ -17,6 +17,7 @@ class GraphCard:
     graph: dict = None
     slider: dict = None
     extra_content: Component = None
+    link_to_page: Page = None
 
     def __post_init__(self):
         self.classes = []
@@ -59,12 +60,16 @@ class GraphCard:
         elif not is_top_row:
             classes.append('grid-unconnected-downstream-card')
 
-        return dbc.Card(
+        card = dbc.Card(
             dbc.CardBody(children=[
                 html.Div(els, className="slider-card__content"),
                 self.extra_content,
-            ]), className=' '.join(classes)
+            ]), className=' '.join(classes),
         )
+        if self.link_to_page:
+            return html.A(card, href=self.link_to_page.path)
+        else:
+            return card
 
 
 class ConnectedCardGridRow:

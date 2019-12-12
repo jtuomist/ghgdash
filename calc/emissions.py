@@ -4,7 +4,7 @@ from .district_heating import predict_district_heating_emissions
 from .electricity import predict_electricity_consumption_emissions
 from .cars import predict_cars_emissions
 from . import calcfunc
-
+from utils.colors import GHG_MAIN_SECTOR_COLORS
 
 SECTORS = {
     'BuildingHeating': dict(name='Rakennusten lämmitys'),
@@ -16,6 +16,7 @@ SECTORS = {
 }
 for key, val in SECTORS.items():
     val['subsectors'] = {}
+    val['color'] = GHG_MAIN_SECTOR_COLORS[key]
 
 HEATING_SUBSECTORS = {
     'DistrictHeat': 'Kaukolämpö',
@@ -98,7 +99,7 @@ def prepare_emissions_dataset(datasets) -> pd.DataFrame:
         predict_cars_emissions
     ],
 )
-def generate_emissions_forecast(variables, datasets):
+def predict_emissions(variables, datasets):
     df = prepare_emissions_dataset()
 
     last_historical_year = df.index.max()
@@ -150,7 +151,7 @@ def generate_emissions_forecast(variables, datasets):
 
 if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
-    df = generate_emissions_forecast()
+    df = predict_emissions()
     print(df)
     #df = df.set_index(['Sector1', 'Sector2'])
     #print(df)

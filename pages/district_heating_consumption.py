@@ -55,6 +55,8 @@ def draw_heat_consumption(df):
         unit_name='GWh',
         sector_name='BuildingHeating',
         smoothing=True,
+        stacked=True,
+        fill=True,
     )
     graph.add_series(
         df=df, column_name='ExistingBuildingHeatUse', trace_name='Vanhat rakennukset',

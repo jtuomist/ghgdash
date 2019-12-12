@@ -5,7 +5,7 @@ import dash_core_components as dcc
 import plotly.graph_objs as go
 
 from variables import get_variable
-from calc.emissions import generate_emissions_forecast, SECTORS
+from calc.emissions import predict_emissions, SECTORS
 from utils.colors import GHG_MAIN_SECTOR_COLORS
 from pages.base import Page
 
@@ -19,8 +19,8 @@ class StickyBar:
     current_page: Page = None
     below_goal_good: bool = True
 
-    def render_emissions_bar(self):
-        df = generate_emissions_forecast()
+    def _render_emissions_bar(self):
+        df = predict_emissions()
 
         last_historical_year = df.loc[~df.Forecast].Year.max()
         start_s = df[df.Year == last_historical_year].groupby('Sector1')['Emissions'].sum()
@@ -126,7 +126,7 @@ class StickyBar:
 
         pötkylä = dbc.Col([
             html.H6('Päästövähennykset'),
-            self.render_emissions_bar()
+            self._render_emissions_bar()
         ], md=6)
         return dbc.Alert([
             dbc.Row([pötkylä, summary])

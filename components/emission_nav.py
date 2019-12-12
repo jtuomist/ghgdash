@@ -2,15 +2,9 @@ import dash_html_components as html
 import dash_bootstrap_components as dbc
 
 from pages import get_page_for_emission_sector
-from calc.emissions import (
-    generate_emissions_forecast, SECTORS, HEATING_SUBSECTORS, TRANSPORTATION_SUBSECTORS
-)
+from calc.emissions import predict_emissions, SECTORS
 
 from variables import get_variable
-
-
-all_subsectors = HEATING_SUBSECTORS
-all_subsectors.update(TRANSPORTATION_SUBSECTORS)
 
 
 def _make_nav_item(sector_name, emissions, indent, page, bold=False, active=False):
@@ -41,7 +35,7 @@ def _make_nav_item(sector_name, emissions, indent, page, bold=False, active=Fals
 
 
 def make_emission_nav(current_page):
-    df = generate_emissions_forecast()
+    df = predict_emissions()
     target_year = get_variable('target_year')
 
     df = df[df.Year == df.Year.max()]

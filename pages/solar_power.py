@@ -36,7 +36,7 @@ def generate_solar_power_stacked(df):
 
     graph = PredictionGraph(
         sector_name='ElectricityConsumption', unit_name='GWh',
-        title='Aurinkopaneelien sähköntuotanto',
+        title='Aurinkopaneelien sähköntuotanto', stacked=True, fill=True
     )
     graph.add_series(df=df, trace_name='Vanhat rakennukset', column_name='SolarPowerExisting', luminance_change=-0.3)
     graph.add_series(df=df, trace_name='Uudet rakennukset', column_name='SolarPowerNew')
