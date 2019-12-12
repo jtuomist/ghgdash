@@ -2,6 +2,7 @@ import pandas as pd
 
 from .district_heating import predict_district_heating_emissions
 from .electricity import predict_electricity_consumption_emissions
+from .cars import predict_cars_emissions
 from . import calcfunc
 
 
@@ -93,7 +94,8 @@ def prepare_emissions_dataset(datasets) -> pd.DataFrame:
     datasets=dict(),
     funcs=[
         prepare_emissions_dataset, predict_district_heating_emissions,
-        predict_electricity_consumption_emissions
+        predict_electricity_consumption_emissions,
+        predict_cars_emissions
     ],
 )
 def generate_emissions_forecast(variables, datasets):
@@ -127,6 +129,10 @@ def generate_emissions_forecast(variables, datasets):
 
     pdf = predict_electricity_consumption_emissions()
     df.loc[df.index > last_historical_year, ('ElectricityConsumption', '')] = \
+        pdf.loc[pdf.index > last_historical_year, 'Emissions']
+
+    pdf = predict_cars_emissions()
+    df.loc[df.index > last_historical_year, ('Transportation', 'Cars')] = \
         pdf.loc[pdf.index > last_historical_year, 'Emissions']
 
     # FIXME: Plug other emission prediction models
