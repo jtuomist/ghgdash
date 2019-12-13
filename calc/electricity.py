@@ -101,7 +101,7 @@ def predict_electricity_consumption(variables):
 
     adj_perc = (100 + variables['electricity_consumption_per_capita_adjustment']) / 100
     cur_adj = adj_perc
-    for year in range(last_year, target_year + 1):
+    for year in range(last_year + 1, target_year + 1):
         s[year] *= cur_adj
         cur_adj *= adj_perc
 
