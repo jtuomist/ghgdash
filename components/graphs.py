@@ -50,7 +50,7 @@ def make_layout(**kwargs):
         separators=', ',
         plot_bgcolor='#fff',
     )
-    if 'legend' not in kwargs:
+    if 'legend' not in kwargs and 'showlegend' not in kwargs:
         params['showlegend'] = False
 
     deepupdate(params, kwargs)
@@ -127,6 +127,8 @@ class PredictionGraph:
     fill: bool = False
     stacked: bool = False
     allow_nonconsecutive_years: bool = False
+    legend: bool = False
+    legend_x: float = None
 
     def __post_init__(self):
         self.series_list = []
@@ -214,6 +216,7 @@ class PredictionGraph:
                     color=color,
                     **line_attrs,
                 ),
+                showlegend=False,
                 **trace_attrs
             )
             traces.insert(0, forecast_trace)
@@ -241,8 +244,6 @@ class PredictionGraph:
 
         tick_vals = []
         tick_labels = []
-        today = date.today()
-        print(self.forecast_start_year)
         for year in range(self.min_year, self.max_year + 1):
             if year != self.forecast_start_year and tick_vals and year != self.max_year:
                 if year - tick_vals[-1] < 3:
@@ -251,6 +252,12 @@ class PredictionGraph:
                     continue
             tick_vals.append(year)
             tick_labels.append(str(year))
+
+        layout_args = {}
+        if self.legend:
+            layout_args['showlegend'] = True
+            if self.legend_x:
+                layout_args['legend'] = dict(x=self.legend_x)
 
         layout = make_layout(
             title=self.title,
@@ -261,11 +268,12 @@ class PredictionGraph:
             xaxis=dict(
                 # type='linear',
                 fixedrange=True,
-                tickvals=tick_vals,
-                ticklabels=tick_labels,
+                # tickvals=tick_vals,
+                # ticklabels=tick_labels,
             ),
             hovermode='closest',
             height=450,
+            **layout_args,
         )
 
         traces = []
