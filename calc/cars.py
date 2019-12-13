@@ -5,7 +5,7 @@ from . import calcfunc
 from .population import get_adjusted_population_forecast
 from .electricity import predict_electricity_emission_factor
 
-LIPASTO_START_YEAR = 2017
+LIPASTO_START_YEAR = 2018
 
 
 @calcfunc(
@@ -23,8 +23,10 @@ def generate_cars_mileage_forecast(datasets, variables):
     target_year = variables['target_year']
     mileage_adj = variables['cars_mileage_adjustment']
 
+    emissions = emissions[emissions.Year == LIPASTO_START_YEAR].drop(columns='Year')
+
     muni = emissions.set_index(['Municipality', 'Vehicle'])
-    mil_df = muni.xs((variables['municipality_name'], 'Cars'))[['Road', 'mileage']].set_index('Road')
+    mil_df = muni.xs((variables['municipality_name'], 'Cars'))[['Road', 'Mileage']].set_index('Road')
 
     pop_df = get_adjusted_population_forecast()
     population_baseline = pop_df.loc[LIPASTO_START_YEAR, 'Population']
@@ -41,7 +43,7 @@ def generate_cars_mileage_forecast(datasets, variables):
 
     df['Mileage'] = 0
     for road in ('Highways', 'Urban'):
-        df[road] = mil_df.loc[road, "mileage"] * pop_df['Population'] / population_baseline * mileage_adj / 1000000
+        df[road] = mil_df.loc[road, "Mileage"] * pop_df['Population'] / population_baseline * mileage_adj / 1000000
         df['Mileage'] += df[road]
 
     df['Forecast'] = True
