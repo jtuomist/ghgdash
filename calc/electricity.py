@@ -16,17 +16,14 @@ from .population import get_adjusted_population_forecast
     )
 )
 def predict_electricity_emission_factor(variables, datasets):
-    """
     df = datasets['ghg_emissions']
     df = df[df.Kaupunki == variables['municipality_name']].drop(columns='Kaupunki')
     df = df[df.Sektori1 == 'Sähkö']
     df['EmissionFactor'] = df['Päästöt'] / df['Energiankulutus'] * 1000
-    print(df.groupby('Vuosi')[['Päästöt', 'Energiankulutus']].sum())
     s = df.groupby('Vuosi')['EmissionFactor'].mean()
-    print(s)
     df = pd.DataFrame(s)
-    """
 
+    """
     PAST_VALUES = [
         214.60, 261.20, 285.80, 349.80, 298.30, 205.00, 307.90, 278.50, 214.40, 229.10,
         269.80, 226.90, 166.90, 199.90, 173.10, 134.90, 146.00, 131.40
@@ -38,6 +35,7 @@ def predict_electricity_emission_factor(variables, datasets):
         index=range(START_YEAR, START_YEAR + len(PAST_VALUES)),
         columns=['EmissionFactor']
     )
+    """
 
     df['Forecast'] = False
     start_year = find_consecutive_start(df.index)
