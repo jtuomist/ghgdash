@@ -5,7 +5,7 @@ from dash.dependencies import Input, Output
 from variables import set_variable, get_variable
 from calc.electricity import predict_electricity_consumption_emissions
 from components.cards import GraphCard, ConnectedCardGrid
-from components.graphs import PredictionGraph
+from components.graphs import PredictionFigure
 
 from .base import Page
 
@@ -46,7 +46,7 @@ def render_page():
 
 page = Page(
     id='electricity-consumption', name='Kulutussähkö', content=render_page, path='/kulutussahko',
-    emission_sector=('ElectricityConsumption', None)
+    emission_sector='ElectricityConsumption'
 )
 
 
@@ -64,21 +64,21 @@ def electricity_consumption_callback(value):
 
     df = predict_electricity_consumption_emissions()
 
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='ElectricityConsumption', title='Sähkönkulutus asukasta kohti',
         unit_name='kWh/as.'
     )
     graph.add_series(df=df, trace_name='Sähkönkulutus/as.', column_name='ElectricityConsumptionPerCapita')
     per_capita_fig = graph.get_figure()
 
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='ElectricityConsumption', title='Kulutussähkön kulutus',
         unit_name='GWh',
     )
     graph.add_series(df=df, trace_name='Sähkönkulutus', column_name='ElectricityConsumption')
     consumption_fig = graph.get_figure()
 
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='ElectricityConsumption', title='Sähköntuotannon päästökerroin',
         unit_name='g/kWh',
         smoothing=True,
@@ -87,7 +87,7 @@ def electricity_consumption_callback(value):
     factor_fig = graph.get_figure()
     print(factor_fig)
 
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='ElectricityConsumption', title='Kulutussähkön päästöt',
         unit_name='kt (CO2e)', smoothing=True,
     )

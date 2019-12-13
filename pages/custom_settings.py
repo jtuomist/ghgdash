@@ -1,4 +1,5 @@
 import json
+import flask
 from flask_babel import gettext as _
 from flask import session
 
@@ -10,6 +11,9 @@ from .base import Page
 
 
 def generate_custom_settings_list():
+    if not flask.has_request_context():
+        return html.Pre()
+
     customized_variables = {key: val for key, val in session.items() if not key.startswith('_')}
     var_str = json.dumps(customized_variables, ensure_ascii=False, indent=4)
     return html.Pre(var_str)

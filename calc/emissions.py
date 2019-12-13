@@ -7,33 +7,42 @@ from . import calcfunc
 from utils.colors import GHG_MAIN_SECTOR_COLORS
 
 SECTORS = {
-    'BuildingHeating': dict(name='Rakennusten lämmitys'),
-    'Transportation': dict(name='Liikenne'),
-    'ElectricityConsumption': dict(name='Kulutussähkö'),
+    'BuildingHeating': dict(
+        name='Rakennusten lämmitys',
+        subsectors={
+            'DistrictHeat': dict(
+                name='Kaukolämpö',
+                subsectors={
+                    'DistrictHeatProduction': dict(name='Kaukolämmön tuotanto'),
+                }
+            ),
+            'OilHeating': dict(name='Öljylämmitys'),
+            'ElectricityHeating': dict(name='Sähkölämmitys'),
+            'GeothermalHeating': dict(name='Maalämpö'),
+        }
+    ),
+    'Transportation': dict(
+        name='Liikenne',
+        subsectors={
+            'Cars': dict(name='Henkilöautot'),
+            'Trucks': dict(name='Kuorma-autot'),
+            'OtherTransportation': dict(name='Muu liikenne'),
+        }
+    ),
+    'ElectricityConsumption': dict(
+        name='Kulutussähkö',
+        subsectors={
+            'SolarPower': dict(name='Aurinkopaneelit'),
+        }
+    ),
     'Waste': dict(name='Jätteiden käsittely'),
     'Industry': dict(name='Teollisuus ja työkoneet'),
     'Agriculture': dict(name='Maatalous'),
 }
 for key, val in SECTORS.items():
-    val['subsectors'] = {}
+    if 'subsectors' not in val:
+        val['subsectors'] = {}
     val['color'] = GHG_MAIN_SECTOR_COLORS[key]
-
-HEATING_SUBSECTORS = {
-    'DistrictHeat': 'Kaukolämpö',
-    'OilHeating': 'Öljylämmitys',
-    'ElectricityHeating': 'Sähkölämmitys',
-    'GeothermalHeating': 'Maalämpö',
-}
-for key, val in HEATING_SUBSECTORS.items():
-    SECTORS['BuildingHeating']['subsectors'][key] = dict(name=val)
-
-TRANSPORTATION_SUBSECTORS = {
-    'Cars': 'Henkilöautot',
-    'Trucks': 'Kuorma-autot',
-    'OtherTransportation': 'Muu liikenne',
-}
-for key, val in TRANSPORTATION_SUBSECTORS.items():
-    SECTORS['Transportation']['subsectors'][key] = dict(name=val)
 
 
 TARGETS = {

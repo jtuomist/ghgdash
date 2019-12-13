@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 
 from components.cards import GraphCard
-from components.graphs import PredictionGraph
+from components.graphs import PredictionFigure
 from components.stickybar import StickyBar
 from variables import get_variable
 from calc.emissions import predict_emissions, SECTORS
@@ -12,7 +12,7 @@ from .base import Page
 
 
 def make_sector_fig(df, name, metadata):
-    fig = PredictionGraph(
+    fig = PredictionFigure(
         sector_name=name,
         unit_name='kt',
         title=metadata['name'],
@@ -40,7 +40,7 @@ def render_page():
     cols = []
     edf = predict_emissions().set_index('Year')
     forecast = edf.groupby('Year')['Forecast'].first()
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name=None,
         unit_name='kt',
         title='Päästöt yhteensä',

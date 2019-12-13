@@ -1,9 +1,9 @@
 from __future__ import annotations
-from datetime import date
 from dataclasses import dataclass
 import pandas as pd
-import plotly.graph_objs as go
 from colour import Color
+import dash_html_components as html
+import dash_core_components as dcc
 
 from utils import deepupdate
 from utils.data import find_consecutive_start
@@ -62,8 +62,8 @@ def make_layout(**kwargs):
 
 
 @dataclass
-class PredictionGraphSeries:
-    graph: PredictionGraph
+class PredictionFigureSeries:
+    graph: PredictionFigure
     df: pd.DataFrame
     trace_name: str = None
     column_name: str = None
@@ -118,7 +118,7 @@ class PredictionGraphSeries:
 
 
 @dataclass
-class PredictionGraph:
+class PredictionFigure:
     sector_name: str = None
     title: str = None
     unit_name: str = None
@@ -136,7 +136,7 @@ class PredictionGraph:
         self.max_year = None
         self.forecast_start_year = None
 
-    def get_traces_for_series(self, series: PredictionGraphSeries, index: int, has_multiple_series: bool):
+    def get_traces_for_series(self, series: PredictionFigureSeries, index: int, has_multiple_series: bool):
         df = series.df
 
         trace_attrs = {}
@@ -224,7 +224,7 @@ class PredictionGraph:
         return traces
 
     def add_series(self, *args, **kwargs):
-        series = PredictionGraphSeries(self, *args, **kwargs)
+        series = PredictionFigureSeries(self, *args, **kwargs)
         self.series_list.append(series)
         df = series.df
         if self.min_year is None or df.index.min() < self.min_year:
@@ -284,3 +284,34 @@ class PredictionGraph:
         fig = dict(data=traces, layout=layout)
 
         return fig
+
+
+@dataclass
+class Graph:
+    id: str
+    graph: dict = None
+    slider: dict = None
+
+    def render(self):
+        els = []
+        graph_attrs = {
+            'config': dict(
+                displayModeBar=False,
+                responsive=True,
+            )
+        }
+        if self.graph is not None:
+            deepupdate(graph_attrs, self.graph)
+        graph = dcc.Graph(id='%s-graph' % self.id, className='slider-card__graph', **graph_attrs)
+        els.append(graph)
+        if self.slider:
+            slider_args = ['min', 'max', 'step', 'value', 'marks']
+            assert set(self.slider.keys()).issubset(set(slider_args))
+            slider_el = dcc.Slider(
+                id='%s-slider' % self.id,
+                vertical=True,
+                className='mb-4',
+                **self.slider,
+            )
+            els.append(html.Div(slider_el, className='slider-card__slider'))
+        return els

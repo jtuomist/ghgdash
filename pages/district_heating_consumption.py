@@ -8,7 +8,7 @@ from calc.district_heating import predict_district_heating_emissions
 from calc.district_heating_consumption import predict_district_heat_consumption
 from variables import set_variable, get_variable
 from components.stickybar import StickyBar
-from components.graphs import PredictionGraph
+from components.graphs import PredictionFigure
 from components.cards import GraphCard, ConnectedCardGrid
 from .base import Page
 
@@ -17,7 +17,7 @@ DISTRICT_HEATING_GOAL = 251
 
 
 def draw_existing_building_unit_heat_factor_graph(df):
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='BuildingHeating',
         unit_name='kWh/k-m²',
         title='Olemassaolevan rakennuskannan ominaislämmönkulutus',
@@ -29,7 +29,7 @@ def draw_existing_building_unit_heat_factor_graph(df):
 
 
 def draw_new_building_unit_heat_factor_graph(df):
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='BuildingHeating',
         unit_name='kWh/k-m²',
         title='Uuden rakennuskannan ominaislämmönkulutus',
@@ -43,7 +43,7 @@ def draw_new_building_unit_heat_factor_graph(df):
 
 def draw_heat_consumption(df):
     df.loc[~df.Forecast, 'NewBuildingHeatUse'] = np.nan
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         title='Kaukolämmön kokonaiskulutus',
         unit_name='GWh',
         sector_name='BuildingHeating',
@@ -63,7 +63,7 @@ def draw_heat_consumption(df):
 
 
 def draw_district_heat_consumption_emissions(df):
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='BuildingHeating',
         unit_name='kt', title='Kaukolämmön kulutuksen päästöt',
         smoothing=True, allow_nonconsecutive_years=True

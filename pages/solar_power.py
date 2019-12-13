@@ -5,7 +5,7 @@ from dash.dependencies import Input, Output
 from calc.solar_power import predict_solar_power_production
 from calc.electricity import predict_electricity_emission_factor
 from variables import set_variable, get_variable
-from components.graphs import PredictionGraph
+from components.graphs import PredictionFigure
 from components.cards import GraphCard, ConnectedCardGrid
 from components.stickybar import StickyBar
 from .base import Page
@@ -16,7 +16,7 @@ CITY_OWNED = 19.0  # %
 
 
 def generate_solar_power_graph(df, label, col, ymax, is_existing):
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='ElectricityConsumption', unit_name='MWp',
         title='%s rakennuskannan aurinkopaneelien piikkiteho' % label,
         y_max=ymax
@@ -34,7 +34,7 @@ def generate_solar_power_stacked(df):
     df.SolarPowerExisting = df.SolarPowerExisting * pv_kwh_wp
     df.loc[~df.Forecast, 'SolarPowerNew'] = np.nan
 
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='ElectricityConsumption', unit_name='GWh',
         title='Aurinkopaneelien sähköntuotanto', stacked=True, fill=True
     )
@@ -136,7 +136,7 @@ def solar_power_callback(existing_building_perc, new_building_perc):
 
     ef_df = predict_electricity_emission_factor()
     kwp_df['EmissionReductions'] = ef_df['EmissionFactor'] * kwp_df['SolarPowerAll'] / 1000
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='ElectricityConsumption', unit_name='kt',
         title='Aurinkopaneelien päästövähennykset',
     )

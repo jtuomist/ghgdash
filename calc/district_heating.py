@@ -251,7 +251,16 @@ def predict_district_heating_emissions():
     return production_df
 
 
+@calcfunc(
+    funcs=[predict_district_heating_emissions]
+)
+def get_district_heating_reduction_contributors():
+    pass
+
+
 if __name__ == '__main__':
     df1, df2 = calc_district_heating_unit_emissions_forecast()
-    print(df1)
-    print(df2)
+    from utils.data import get_contributions_from_multipliers
+    #######
+    df = get_contributions_from_multipliers(df1, 'Emission factor', 'Heat demand')
+    print(df)

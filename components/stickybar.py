@@ -37,6 +37,11 @@ class StickyBar:
             else:
                 active = False
 
+            """
+            if sector_name == 'BuildingHeating':
+                bars = self.render_building_heating()
+            """
+
             bar = dict(
                 type='bar',
                 x=[emissions],

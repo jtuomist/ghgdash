@@ -1,3 +1,4 @@
+import os
 import json
 from functools import wraps
 
@@ -75,8 +76,11 @@ def calcfunc(variables=None, datasets=None, funcs=None):
 
         @wraps(func)
         def wrap_calc_func(*args, **kwargs):
-            pc = PerfCounter('%s.%s' % (func.__module__, func.__name__))
-            pc.display('enter')
+            should_profile = os.environ.get('PROFILE_CALC', '').lower() in ('1', 'true', 'yes')
+
+            if should_profile:
+                pc = PerfCounter('%s.%s' % (func.__module__, func.__name__))
+                pc.display('enter')
 
             hash_data = _get_func_hash_data(func)
             cache_key = _calculate_cache_key(hash_data)
@@ -88,12 +92,12 @@ def calcfunc(variables=None, datasets=None, funcs=None):
                 should_cache_func = True
             else:
                 should_cache_func = False
-                print('not caching func %s.%s' % (func.__module__, func.__name__))
 
             if should_cache_func:
                 ret = cache.get(cache_key)
                 if ret is not None:  # calcfuncs must not return None
-                    pc.display('cache hit')
+                    if should_profile:
+                        pc.display('cache hit')
                     return ret
 
             if variables is not None:
@@ -104,11 +108,13 @@ def calcfunc(variables=None, datasets=None, funcs=None):
                 if datasets_to_load:
                     loaded_datasets = []
                     for dataset_name in datasets_to_load:
-                        ds_pc = PerfCounter('dataset %s' % dataset_name)
+                        if should_profile:
+                            ds_pc = PerfCounter('dataset %s' % dataset_name)
                         df = load_datasets(dataset_name)
-                        ds_pc.display('loaded')
+                        if should_profile:
+                            ds_pc.display('loaded')
+                            del ds_pc
                         loaded_datasets.append(df)
-                        del ds_pc
 
                     for dataset_name, dataset in zip(datasets_to_load, loaded_datasets):
                         _dataset_cache[dataset_name] = dataset
@@ -116,7 +122,8 @@ def calcfunc(variables=None, datasets=None, funcs=None):
                 kwargs['datasets'] = {ds_name: _dataset_cache[ds_url] for ds_name, ds_url in datasets.items()}
 
             ret = func(*args, **kwargs)
-            pc.display('func ret')
+            if should_profile:
+                pc.display('func ret')
             if should_cache_func:
                 assert ret is not None
                 cache.set(cache_key, ret, timeout=600)

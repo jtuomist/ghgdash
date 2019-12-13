@@ -7,49 +7,24 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 
-from utils import deepupdate
 from utils.colors import ARCHER_STROKE
+from .graphs import Graph
 
 
-@dataclass
-class GraphCard:
-    id: str
-    graph: dict = None
-    slider: dict = None
-    extra_content: Component = None
-    link_to_page: Page = None
-
-    def __post_init__(self):
-        self.classes = []
+class ConnectedCardBase:
+    def __init__(self, id):
         self.upstream_card = None
         self.downstream_card = None
+        self.id = id
 
     def connect_to(self, card: GraphCard):
         self.downstream_card = card
         card.upstream_card = self
 
     def render(self, is_top_row: bool = True) -> dbc.Card:
-        els = []
-        graph_attrs = {
-            'config': dict(
-                displayModeBar=False,
-                responsive=True,
-            )
-        }
-        if self.graph is not None:
-            deepupdate(graph_attrs, self.graph)
-        els.append(dcc.Graph(id='%s-graph' % self.id, className='slider-card__graph', **graph_attrs))
-        if self.slider:
-            slider_args = ['min', 'max', 'step', 'value', 'marks']
-            assert set(self.slider.keys()).issubset(set(slider_args))
-            slider_el = dcc.Slider(
-                id='%s-slider' % self.id,
-                vertical=True,
-                className='mb-4',
-                **self.slider,
-            )
-            els.append(html.Div(slider_el, className='slider-card__slider'))
+        raise NotImplementedError()
 
+    def get_classes(self, is_top_row: bool):
         classes = ['mb-4']
         if self.downstream_card:
             classes.append('card-border-bottom')
@@ -60,14 +35,43 @@ class GraphCard:
         elif not is_top_row:
             classes.append('grid-unconnected-downstream-card')
 
+        return classes
+
+
+class ConnectedCard(ConnectedCardBase):
+    def __init__(self, id, component):
+        super().__init__(id)
+        self.component = component
+
+    def render(self, is_top_row: bool = True) -> dbc.Card:
+        classes = self.get_classes(is_top_row)
+        return dbc.Card(
+            dbc.CardBody(children=self.component, className=' '.join(classes)),
+        )
+
+
+@dataclass
+class GraphCard(ConnectedCardBase):
+    id: str
+    graph: dict = None
+    slider: dict = None
+    extra_content: Component = None
+    link_to_page: Page = None
+
+    def __post_init__(self):
+        super().__init__(self.id)
+
+    def render(self, is_top_row: bool = True) -> dbc.Card:
+        graph = Graph(self.id, self.graph, self.slider)
+        classes = self.get_classes(is_top_row)
         card = dbc.Card(
             dbc.CardBody(children=[
-                html.Div(els, className="slider-card__content"),
+                html.Div(graph.render(), className="slider-card__content"),
                 self.extra_content,
             ]), className=' '.join(classes),
         )
         if self.link_to_page:
-            return html.A(card, href=self.link_to_page.path)
+            return dcc.Link(children=card, href=self.link_to_page.path)
         else:
             return card
 
@@ -94,7 +98,7 @@ class ConnectedCardGrid:
         self.rows.append(row)
         return row
 
-    def add_card(self, card: GraphCard):
+    def add_card(self, card: ConnectedCardBase):
         """Helper method to add a card to the last row"""
         self.rows[-1].add_card(card)
 

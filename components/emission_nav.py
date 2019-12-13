@@ -66,7 +66,8 @@ def make_emission_nav(current_page):
 
         sdf = sdf.sort_values('Sector2', ascending=True).set_index('Sector2').Emissions
         for subsector_name, emissions in sdf.iteritems():
-            if current_sector and sector_name == current_sector[0] and subsector_name == current_sector[1]:
+            sec_path = (sector_name, subsector_name)
+            if current_sector == sec_path:
                 active = True
             else:
                 active = False

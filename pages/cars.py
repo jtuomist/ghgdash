@@ -4,7 +4,7 @@ import plotly.graph_objs as go
 
 from variables import set_variable, get_variable
 from components.stickybar import StickyBar
-from components.graphs import make_layout, PredictionGraph
+from components.graphs import make_layout, PredictionFigure
 from components.cards import GraphCard, ConnectedCardGrid
 from .base import Page
 
@@ -23,7 +23,7 @@ ENGINE_TYPES = {
 
 def draw_bev_chart(df):
     df = df.dropna()
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='Transportation',
         unit_name='%',
         title='Sähköautojen ajosuoriteosuus',
@@ -141,7 +141,7 @@ def cars_callback(bev_percentage, mileage_adj):
     df['Mileage'] /= 1000000
 
     bev_chart = draw_bev_chart(df)
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='Transportation',
         unit_name='%',
         title='Biopolttoaineiden osuus myydyissä polttoaineissa',
@@ -151,7 +151,7 @@ def cars_callback(bev_percentage, mileage_adj):
     )
     biofuel_chart = graph.get_figure()
 
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='Transportation',
         unit_name='km/as.',
         title='Ajokilometrit asukasta kohti',
@@ -162,7 +162,7 @@ def cars_callback(bev_percentage, mileage_adj):
     per_resident_chart = graph.get_figure()
 
     # Total mileage
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='Transportation',
         unit_name='Mkm',
         title='Ajokilometrien kehitys',
@@ -173,7 +173,7 @@ def cars_callback(bev_percentage, mileage_adj):
     mileage_chart = graph.get_figure()
 
     # Total emissions
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='Transportation',
         unit_name='g/km',
         title='Henkilöautojen päästökerroin',
@@ -184,7 +184,7 @@ def cars_callback(bev_percentage, mileage_adj):
     emission_factor_chart = graph.get_figure()
 
     # Total emissions
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='Transportation',
         unit_name='kt (CO₂e.)',
         title='Henkilöautoilun päästöt',

@@ -11,10 +11,7 @@ from common import cache
 os.environ['DASH_PRUNE_ERRORS'] = 'False'
 os.environ['DASH_SILENCE_ROUTES_LOGGING'] = 'False'
 
-app = dash.Dash(
-    __name__,
-    suppress_callback_exceptions=True
-)
+app = dash.Dash(__name__)
 app.css.config.serve_locally = True
 app.scripts.config.serve_locally = True
 
@@ -30,7 +27,7 @@ with server.app_context():
     babel = Babel(server)
 
 
-app.layout = generate_layout(app)
+app.layout = generate_layout
 register_callbacks(app)
 
 if __name__ == '__main__':

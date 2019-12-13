@@ -9,13 +9,13 @@ from dash.dependencies import Input, Output
 
 from calc.district_heating import calc_district_heating_unit_emissions_forecast
 from components.cards import GraphCard
-from components.graphs import PredictionGraph
+from components.graphs import PredictionFigure
 from variables import get_variable, set_variable
 from .base import Page
 
 
 def generate_district_heating_forecast_graph(df):
-    graph = PredictionGraph(
+    graph = PredictionFigure(
         sector_name='BuildingHeating',
         unit_name='kt',
         title='Kaukolämmön kulutuksen päästöt',
@@ -150,7 +150,8 @@ page = Page(
     id='district-heat-production',
     name='Kaukolämmön tuotanto',
     content=render_page,
-    path='/kaukolammon-tuotanto'
+    path='/kaukolammon-tuotanto',
+    emission_sector=('BuildingHeating', 'DistrictHeat', 'DistrictHeatProduction')
 )
 
 

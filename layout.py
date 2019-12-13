@@ -1,3 +1,4 @@
+import flask
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
@@ -10,14 +11,27 @@ from pages import load_pages, all_pages
 load_pages()
 
 
-def generate_layout(app):
+def generate_layout():
+    pages = []
+    if not flask.has_request_context():
+        from utils.perf import PerfCounter
+
+        pc = PerfCounter('pages')
+        pc.display('Rendering all')
+        # Generate all pages for checking input and output callbacks
+        for page in all_pages.values():
+            pages.append(page.render())
+            pc.display(page.name)
+        pc.display('done')
+
     return html.Div(children=[
         dcc.Location(id='url', refresh=False),
         html.Div(id='app-content'),
+        *pages,
     ])
 
 
-def display_page(current_path):
+def display_page(current_path, href):
     pc = PerfCounter('Page %s' % current_path)
     pc.display('start')
 
@@ -42,7 +56,7 @@ def display_page(current_path):
 def register_callbacks(app):
     wrap_callback = app.callback(
         [Output('app-content', 'children')],
-        [Input('url', 'pathname')]
+        [Input('url', 'pathname'), Input('url', 'href')]
     )
     wrap_callback(display_page)
 
