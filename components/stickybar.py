@@ -1,3 +1,4 @@
+import pandas as pd
 from dataclasses import dataclass
 import dash_html_components as html
 import dash_bootstrap_components as dbc
@@ -5,8 +6,7 @@ import dash_core_components as dcc
 import plotly.graph_objs as go
 
 from variables import get_variable
-from calc.emissions import predict_emissions, SECTORS
-from utils.colors import GHG_MAIN_SECTOR_COLORS
+from calc.emissions import predict_emissions, get_sector_by_path
 from pages.base import Page
 
 
@@ -21,16 +21,17 @@ class StickyBar:
 
     def _render_emissions_bar(self):
         df = predict_emissions()
+        forecast = df.pop('Forecast')
 
-        last_historical_year = df.loc[~df.Forecast].Year.max()
-        start_s = df[df.Year == last_historical_year].groupby('Sector1')['Emissions'].sum()
-        target_s = df[df.Year == df.Year.max()].groupby('Sector1')['Emissions'].sum()
-
+        df = df.sum(axis=1, level=0)
+        last_historical_year = df.loc[~forecast].index.max()
+        start_s = df.loc[last_historical_year]
+        target_s = df.iloc[-1]
         reductions = (start_s - target_s).sort_values(ascending=False)
         traces = []
         page = self.current_page
         for sector_name, emissions in reductions.iteritems():
-            sector_metadata = SECTORS[sector_name]
+            sector_metadata = get_sector_by_path(sector_name)
             if page is not None and page.emission_sector is not None and \
                     page.emission_sector[0] == sector_name:
                 active = True
@@ -42,6 +43,7 @@ class StickyBar:
                 bars = self.render_building_heating()
             """
 
+            print(sector_metadata)
             bar = dict(
                 type='bar',
                 x=[emissions],
@@ -49,7 +51,7 @@ class StickyBar:
                 orientation='h',
                 hovertemplate='%{x: .0f}',
                 marker=dict(
-                    color=GHG_MAIN_SECTOR_COLORS[sector_name]
+                    color=sector_metadata['color']
                 )
             )
             if active:

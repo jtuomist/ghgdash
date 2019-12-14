@@ -95,9 +95,8 @@ def generate_page():
 
 page = Page(
     id='pv-production',
-    name='Aurinkosähkön tuotanto',
     path='/aurinkopaneelit',
-    emission_sector=['ElectricityConsumption', 'SolarPower'],
+    emission_sector=['ElectricityConsumption', 'SolarProduction'],
     content=generate_page
 )
 
@@ -134,8 +133,6 @@ def solar_power_callback(existing_building_perc, new_building_perc):
     fig_new = generate_solar_power_graph(kwp_df, "Uuden", "SolarPowerNew", ymax, False)
     fig_tot, ekwpa, nkwpa = generate_solar_power_stacked(kwp_df)
 
-    ef_df = predict_electricity_emission_factor()
-    kwp_df['EmissionReductions'] = ef_df['EmissionFactor'] * kwp_df['SolarPowerAll'] / 1000
     graph = PredictionFigure(
         sector_name='ElectricityConsumption', unit_name='kt',
         title='Aurinkopaneelien päästövähennykset',

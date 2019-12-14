@@ -77,8 +77,6 @@ def predict_district_heat_consumption(variables, datasets):
     # assume grid formation
     df['BoreholeAreaNeeded'] = (boreholes * 25**2) / 1000000  # m2 -> km2
 
-    print(df)
-
     return df
 
 

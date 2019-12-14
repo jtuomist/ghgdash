@@ -19,11 +19,13 @@ def make_sector_fig(df, name, metadata):
         smoothing=True,
         # allow_nonconsecutive_years=True,
         fill=True,
-        stacked=True
+        stacked=True,
     )
     if len(df.columns) == 2:
         fig.add_series(df=df, trace_name='Päästöt', column_name='')
     else:
+        fig.legend = True
+        fig.legend_x = 0.8
         luminance_change = -0.3
         for idx, col_name in enumerate(df.columns):
             if col_name == 'Forecast':
@@ -38,20 +40,22 @@ def make_sector_fig(df, name, metadata):
 
 def render_page():
     cols = []
-    edf = predict_emissions().set_index('Year')
-    forecast = edf.groupby('Year')['Forecast'].first()
+    edf = predict_emissions().dropna(axis=1, how='all')
+    forecast = edf.pop('Forecast')
     graph = PredictionFigure(
         sector_name=None,
         unit_name='kt',
         title='Päästöt yhteensä',
         smoothing=True,
         fill=True,
-        stacked=True
+        stacked=True,
+        legend=True,
+        legend_x=0.8
     )
     for sector_name, sector_metadata in SECTORS.items():
-        df = edf.loc[edf.Sector1 == sector_name, ['Sector2', 'Forecast', 'Emissions']]
-        df = df.pivot(columns='Sector2', values='Emissions')
+        df = pd.DataFrame(edf[sector_name])
         df['Forecast'] = forecast
+
         fig = make_sector_fig(df, sector_name, sector_metadata)
         sector_page = get_page_for_emission_sector(sector_name, None)
         card = GraphCard(id='emissions-%s' % sector_name, graph=dict(figure=fig), link_to_page=sector_page)
@@ -72,10 +76,10 @@ def render_page():
     ref_year = get_variable('ghg_reductions_reference_year')
     perc_off = get_variable('ghg_reductions_percentage_in_target_year')
 
-    ref_emissions = edf.loc[ref_year].Emissions.sum()
+    ref_emissions = edf.loc[ref_year].sum()
     target_emissions = ref_emissions * (1 - perc_off / 100)
 
-    target_year_emissions = edf.loc[target_year].Emissions.sum()
+    target_year_emissions = edf.loc[target_year].sum()
     sticky = StickyBar(
         label='Päästöt yhteensä',
         goal=target_emissions,
@@ -87,8 +91,8 @@ def render_page():
     card = GraphCard(id='emissions-total', graph=dict(figure=graph.get_figure()))
 
     return html.Div([
-        dbc.Row(cols),
         dbc.Row(dbc.Col(card.render())),
+        dbc.Row(cols),
         sticky.render()
     ])
 
@@ -102,8 +106,4 @@ page = Page(
 
 
 if __name__ == '__main__':
-    def run_twice():
-        render_page()
-        render_page()
-    import cProfile
-    cProfile.run('run_twice()', 'prof')
+    render_page()

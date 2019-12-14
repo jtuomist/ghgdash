@@ -78,4 +78,4 @@ def generate_building_floor_area_forecast(variables):
 
 
 if __name__ == '__main__':
-    generate_building_floor_area_forecast()
+    print(generate_building_floor_area_forecast())

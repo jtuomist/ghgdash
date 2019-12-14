@@ -1,3 +1,4 @@
+import pandas as pd
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 
@@ -16,7 +17,7 @@ def _make_nav_item(sector_name, emissions, indent, page, bold=False, active=Fals
         attrs['href'] = page.path
     style = {}
     if indent:
-        style = {'marginLeft': '2rem'}
+        style = {'marginLeft': '%drem' % 2 * indent}
     if bold:
         style = {'fontWeight': 'bold'}
 
@@ -38,50 +39,51 @@ def make_emission_nav(current_page):
     df = predict_emissions()
     target_year = get_variable('target_year')
 
-    df = df[df.Year == df.Year.max()]
+    ts = df.sort_index().drop(columns='Forecast', level=0).loc[target_year]
 
     items = []
 
     current_sector = current_page.emission_sector if current_page and current_page.emission_sector else None
-
     # Sort sectors based on the target year emissions
-    sector_emissions = df.groupby('Sector1').Emissions.sum().sort_values(ascending=False)
-    for sector_name, emissions in sector_emissions.iteritems():
-        sector_metadata = SECTORS[sector_name]
-        sdf = df.loc[df.Sector1 == sector_name]
-        page = get_page_for_emission_sector(sector_name, None)
+    sector_emissions = ts.sum(level=0).sort_values(ascending=False)
 
-        subsectors = sdf.Sector2.unique()
+    def render_sector(s, sector_path, level):
+        sector_emissions = s.sum(level=0).sort_values(ascending=False)
+        for subsector_name, emissions in sector_emissions.iteritems():
+            if not subsector_name:
+                continue
+            subsector_path = tuple([*sector_path, subsector_name])
 
-        if current_sector and sector_name == current_sector[0] and len(subsectors) <= 1:
-            active = True
-        else:
-            active = False
+            next_metadata = SECTORS
+            for sp in subsector_path:
+                metadata = next_metadata[sp]
+                next_metadata = metadata.get('subsectors', {})
 
-        item = _make_nav_item(sector_metadata['name'], emissions, False, page, active=active)
-        items.append(item)
-
-        if len(subsectors) <= 1:
-            continue
-
-        sdf = sdf.sort_values('Sector2', ascending=True).set_index('Sector2').Emissions
-        for subsector_name, emissions in sdf.iteritems():
-            sec_path = (sector_name, subsector_name)
-            if current_sector == sec_path:
+            if current_sector == subsector_path:
                 active = True
             else:
                 active = False
 
-            page = get_page_for_emission_sector(sector_name, subsector_name)
+            page = get_page_for_emission_sector(*subsector_path)
             item = _make_nav_item(
-                sector_metadata['subsectors'][subsector_name]['name'], emissions, True, page, active=active
+                metadata['name'], emissions, level, page, active=active
             )
             items.append(item)
 
-    sum_emissions = sector_emissions.sum()
-    items.append(_make_nav_item('Yhteensä', sum_emissions, False, None, bold=True))
+            ss = s[subsector_name]
+            if isinstance(ss, pd.Series):
+                render_sector(ss, subsector_path, level + 1)
+
+    render_sector(ts, tuple(), 0)
+
+    items.append(_make_nav_item('Yhteensä', sector_emissions.sum(), 0, None, bold=True))
 
     return html.Div([
         html.H6('Päästöt vuonna %s' % target_year),
         dbc.ListGroup(children=items)
     ])
+
+
+if __name__ == '__main__':
+    pd.set_option('display.max_rows', None)
+    make_emission_nav(None)

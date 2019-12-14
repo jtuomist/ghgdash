@@ -12,16 +12,6 @@ from common import cache
 _dataset_cache = {}
 
 
-def _generate_cache_key(func, variables):
-    if variables:
-        var_hash = json.dumps(variables, sort_keys=True)
-    else:
-        var_hash = None
-    key = '%s:%s' % (hash(func), hash(var_hash))
-    # print(key)
-    return key
-
-
 def _get_func_hash_data(func):
     variables = func.variables or {}
     all_variables = set(variables.values())
@@ -39,14 +29,17 @@ def _get_func_hash_data(func):
     return dict(variables=all_variables, funcs=all_funcs)
 
 
-def _calculate_cache_key(hash_data):
+def _calculate_cache_key(func, hash_data):
     funcs = hash_data['funcs']
     variables = hash_data['variables']
     var_data = json.dumps({x: get_variable(x) for x in variables}, sort_keys=True)
-    func_hash = 0
-    for func in funcs:
-        func_hash ^= hash(func)
-    return '%s:%s' % (hash(var_data), func_hash)
+
+    func_hash = id(func)
+    for child_func in funcs:
+        func_hash ^= id(child_func) << 1
+
+    func_name = '.'.join((func.__module__, func.__name__))
+    return '%s:%x:%x' % (func_name, hash(var_data), func_hash)
 
 
 def calcfunc(variables=None, datasets=None, funcs=None):
@@ -83,7 +76,7 @@ def calcfunc(variables=None, datasets=None, funcs=None):
                 pc.display('enter')
 
             hash_data = _get_func_hash_data(func)
-            cache_key = _calculate_cache_key(hash_data)
+            cache_key = _calculate_cache_key(func, hash_data)
 
             assert 'variables' not in kwargs
             assert 'datasets' not in kwargs

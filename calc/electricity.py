@@ -7,6 +7,7 @@ from utils.data import find_consecutive_start
 
 from . import calcfunc
 from .population import get_adjusted_population_forecast
+from .solar_power import predict_solar_power_production
 
 
 @calcfunc(
@@ -168,17 +169,21 @@ def calculate_electricity_supply_emission_factor(datasets):
 @calcfunc(
     funcs=[
         predict_electricity_consumption,
-        predict_electricity_emission_factor
+        predict_electricity_emission_factor,
+        predict_solar_power_production,
     ]
 )
 def predict_electricity_consumption_emissions():
     cdf = predict_electricity_consumption()
     udf = predict_electricity_emission_factor()
+    sdf = predict_solar_power_production()
     cdf['EmissionFactor'] = udf['EmissionFactor']
     cdf['Emissions'] = cdf['ElectricityConsumption'] * cdf['EmissionFactor'] / 1000
+    cdf['SolarProduction'] = sdf['SolarProduction']
+    cdf['SolarEmissionReductions'] = cdf['SolarProduction'] * cdf['EmissionFactor'] / 1000
     return cdf
 
 
 if __name__ == '__main__':
-    predict_electricity_consumption_emissions()
+    print(predict_electricity_consumption_emissions())
     # print(calculate_electricity_supply_emission_factor())

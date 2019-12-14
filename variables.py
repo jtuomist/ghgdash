@@ -72,6 +72,8 @@ VARIABLE_DEFAULTS = {
     'cars_bev_percentage': 80,
     'cars_mileage_per_resident_adjustment': 0,
     'vehicle_fuel_bio_percentage': 30,
+
+    'geothermal_heat_pump_cop': 3.2,
 }
 
 

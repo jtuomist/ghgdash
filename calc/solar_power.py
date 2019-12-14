@@ -59,7 +59,7 @@ def predict_solar_power_production(datasets, variables):
     # by using floor area forecast data and the current potential based on
     # floor area. Do the calculations per building category.
     new_df = generate_building_floor_area_forecast()
-    new_df = new_df.query('Forecast').drop(columns='Forecast')
+    new_df = new_df.loc[new_df.Forecast].drop(columns='Forecast')
     new_df = new_df.diff()
     for col in new_df.columns:
         # Map building types from building floor area forecast to solar power data
@@ -76,6 +76,6 @@ def predict_solar_power_production(datasets, variables):
     df.SolarPowerNew = df.SolarPowerNew.fillna(0.0)
 
     # Sum production
-    df['SolarPowerAll'] = df['SolarPowerNew'] + df['SolarPowerExisting']
+    df['SolarProduction'] = df['SolarPowerNew'] + df['SolarPowerExisting']
 
     return df

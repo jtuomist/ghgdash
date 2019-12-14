@@ -108,7 +108,6 @@ def predict_district_heat_consumption(variables, datasets):
     df['BuiltPerYear'] = df.NewBuildingNetArea.diff()
     df['NewBuildingHeatUse'] = df['BuiltPerYear'].mul(future_heating_factor, axis=0) / 1000
     df['NewBuildingHeatUse'] = df.NewBuildingHeatUse.cumsum().fillna(0)
-
     df['ExistingBuildingHeatUse'] = heat_use / 1000000  # kWh to GWh
     forecast = df.ExistingBuildingNetArea.mul(existing_heating_factor.HeatUsePerNetArea, axis=0) / 1000
     forecast *= 0.95   # FIXME: magic correction factor (weather warming?), fix this later!
