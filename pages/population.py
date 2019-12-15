@@ -8,6 +8,8 @@ from variables import get_variable, set_variable
 from calc.population import get_adjusted_population_forecast
 from components.cards import GraphCard
 from components.graphs import make_layout
+from components.card_description import CardDescription
+from components.stickybar import StickyBar
 from .base import Page
 
 
@@ -59,7 +61,10 @@ def render_page():
         marks={x: '%d %%' % x for x in range(-20, 20 + 1, 5)},
     )
     card = GraphCard(id='population', slider=slider).render()
-    return dbc.Row(dbc.Col(card, md=6))
+    return html.Div([
+        dbc.Row(dbc.Col(card, md=6)),
+        html.Div(id='population-summary-bar-container'),
+    ])
 
 
 page = Page(
@@ -71,14 +76,40 @@ page = Page(
 
 
 @page.callback(
-    outputs=[Output('population-graph', 'figure')],
+    outputs=[
+        Output('population-graph', 'figure'),
+        Output('population-description', 'children'),
+        Output('population-summary-bar-container', 'children')
+    ],
     inputs=[Input('population-slider', 'value')],
 )
 def population_callback(value):
     set_variable('population_forecast_correction', value)
     pop_df = get_adjusted_population_forecast()
-    pop_in_target_year = pop_df.loc[[get_variable('target_year')]].Population
+    target_year = get_variable('target_year')
+    pop_in_target_year = pop_df.loc[target_year].Population
+    last_hist = pop_df[~pop_df.Forecast].iloc[-1]
     fig = generate_population_forecast_graph(pop_df)
+    cd = CardDescription()
+    cd.set_values(
+        pop_in_target_year=pop_in_target_year,
+        pop_adj=get_variable('population_forecast_correction'),
+        pop_diff=(1 - last_hist.Population / pop_in_target_year) * 100,
+    )
+    cd.set_variables(
+        last_year=last_hist.name
+    )
+    pop_desc = cd.render("""
+        {municipality_genitive} väkiluku vuonna {target_year} on {pop_in_target_year}.
+        Muutos viralliseen väestöennusteeseen on {pop_adj:noround} %.
+        Väkiluvun muutos vuoteen {last_year} verrattuna on {pop_diff} %.
+    """)
+
+    bar = StickyBar(
+        label="Väkiluku %s" % get_variable('municipality_locative'),
+        value=pop_in_target_year,
+        unit='asukasta',
+    )
 
     # return fig, pop_in_target_year.round()
-    return [fig]
+    return [fig, dbc.Col(pop_desc), bar.render()]
