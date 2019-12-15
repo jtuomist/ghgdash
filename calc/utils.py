@@ -1,3 +1,4 @@
+import importlib
 import os
 import json
 from functools import wraps
@@ -12,15 +13,32 @@ from common import cache
 _dataset_cache = {}
 
 
-def _get_func_hash_data(func):
+def ensure_imported(func):
+    if isinstance(func, str):
+        paths = func.split('.')
+        func_name = paths.pop()
+        paths.insert(0, 'calc')
+        mod = importlib.import_module('.'.join(paths))
+        return getattr(mod, func_name)
+    return func
+
+
+def _get_func_hash_data(func, seen_funcs):
+    if seen_funcs is None:
+        seen_funcs = set([func])
+
     variables = func.variables or {}
     all_variables = set(variables.values())
 
     children = func.calcfuncs or []
+    children = [ensure_imported(x) for x in children]
     all_funcs = set(children)
 
     for child in children:
-        hash_data = _get_func_hash_data(child)
+        if child in seen_funcs:
+            continue
+        seen_funcs.add(child)
+        hash_data = _get_func_hash_data(child, seen_funcs)
         all_variables.update(hash_data['variables'])
         all_funcs.update(hash_data['funcs'])
 
@@ -60,7 +78,7 @@ def calcfunc(variables=None, datasets=None, funcs=None):
     if funcs is not None:
         assert isinstance(funcs, (list, tuple))
         for func in funcs:
-            assert callable(func)
+            assert callable(func) or isinstance(func, str)
 
     def wrapper_factory(func):
         func.variables = variables
@@ -75,7 +93,7 @@ def calcfunc(variables=None, datasets=None, funcs=None):
                 pc = PerfCounter('%s.%s' % (func.__module__, func.__name__))
                 pc.display('enter')
 
-            hash_data = _get_func_hash_data(func)
+            hash_data = _get_func_hash_data(func, None)
             cache_key = _calculate_cache_key(func, hash_data)
 
             assert 'variables' not in kwargs

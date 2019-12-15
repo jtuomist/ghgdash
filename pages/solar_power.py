@@ -8,6 +8,7 @@ from variables import set_variable, get_variable
 from components.graphs import PredictionFigure
 from components.cards import GraphCard, ConnectedCardGrid
 from components.stickybar import StickyBar
+from components.card_description import CardDescription
 from .base import Page
 
 
@@ -97,7 +98,8 @@ page = Page(
     id='pv-production',
     path='/aurinkopaneelit',
     emission_sector=['ElectricityConsumption', 'SolarProduction'],
-    content=generate_page
+    content=generate_page,
+    name='Paikallinen aurinkovoimatuotanto'
 )
 
 
@@ -129,44 +131,55 @@ def solar_power_callback(existing_building_perc, new_building_perc):
 
     ymax = kwp_max.SolarPowerExisting.iloc[-1]
     fig_old = generate_solar_power_graph(kwp_df, "Vanhan", "SolarPowerExisting", ymax, True)
-    ymax = kwp_max.SolarPowerNew.iloc[-1]
+    # ymax = kwp_max.SolarPowerNew.iloc[-1]
     fig_new = generate_solar_power_graph(kwp_df, "Uuden", "SolarPowerNew", ymax, False)
     fig_tot, ekwpa, nkwpa = generate_solar_power_stacked(kwp_df)
 
     graph = PredictionFigure(
         sector_name='ElectricityConsumption', unit_name='kt',
-        title='Aurinkopaneelien päästövähennykset',
+        title='Aurinkopaneelien päästövaikutukset',
+        fill=True
     )
-    graph.add_series(kwp_df, trace_name='Päästövähennykset', column_name='EmissionReductions')
+    ef_df = predict_electricity_emission_factor()
+    kwp_df['NetEmissions'] = -kwp_df['SolarProduction'] * ef_df['EmissionFactor'] / 1000
+    graph.add_series(df=kwp_df, column_name='NetEmissions', trace_name='Päästövaikutukset')
     fig_emissions = graph.get_figure()
 
-    s = kwp_df.SolarPowerAll
+    s = kwp_df.SolarProduction
+
+    cd = CardDescription()
+
+    city_owned = get_variable('building_area_owned_by_org') / 100
+    cd.set_values(
+        existing_building_perc=existing_building_perc,
+        org_existing_building_kwp=1000 * ekwpa * city_owned,
+        others_existing_building_kwp=1000 * ekwpa * (1 - city_owned)
+    )
+
+    existing_kwpa = cd.render("""
+    Kun aurinkopaneeleita rakennetaan {existing_building_perc:noround} % kaikesta vanhan
+    rakennuskannan kattopotentiaalista, {org_genitive} tulee rakentaa aurinkopaneeleita
+    {org_existing_building_kwp} kWp vuodessa skenaarion toteutumiseksi. Muiden kuin {org_genitive}
+    tulee rakentaa {others_existing_building_kwp} kWp aurinkopaneeleita vuodessa.
+    """)
+
+    cd.set_values(
+        new_building_perc=new_building_perc,
+        org_new_building_kwp=1000 * nkwpa * city_owned,
+        others_new_building_kwp=1000 * nkwpa * (1 - city_owned)
+    )
+    new_kwpa = cd.render("""
+    Kun uuteen rakennuskantaan rakennetaan aurinkopaneeleja {new_building_perc:noround} %
+    kaikesta kattopotentiaalista, {org_genitive} tulee rakentaa aurinkopaneeleja
+    {org_new_building_kwp} kWp vuodessa skenaarion toteutumiseksi. Muiden kuin {org_genitive}
+    tulee rakentaa {others_new_building_kwp} kWp aurinkopaneeleita vuodessa.
+    """)
+
     forecast = s.iloc[-1] * get_variable('yearly_pv_energy_production_kwh_wp')
-
-    existing_kwpa = html.Div([
-        html.Span("Kun aurinkopaneeleita rakennetaan "),
-        html.Span('%d %%' % existing_building_perc, className='summary-card__value'),
-        html.Span(" kaikesta vanhan rakennuskannan kattopotentiaalista, Helsingin kaupunkikonsernin tulee rakentaa aurinkopaneeleja "),
-        html.Span("%d kWp" % (1000 * ekwpa * CITY_OWNED / 100), className='summary-card__value'),
-        html.Span(" vuodessa skenaarion toteutumiseksi. Muiden kuin Helsingin kaupungin tulee rakentaa "),
-        html.Span("%d kWp" % (1000 * ekwpa * (100 - CITY_OWNED) / 100), className='summary-card__value'),
-        html.Span(" vuodessa."),
-    ])
-
-    new_kwpa = html.Div([
-        html.Span("Kun uuteen rakennuskantaan rakennetaan aurinkopaneeleja "),
-        html.Span('%d %%' % new_building_perc, className='summary-card__value'),
-        html.Span(" kaikesta kattopotentiaalista, Helsingin kaupunkikonsernin tulee rakentaa aurinkopaneeleja "),
-        html.Span("%d kWp" % (1000 * nkwpa * CITY_OWNED / 100), className='summary-card__value'),
-        html.Span(" vuodessa skenaarion toteutumiseksi. Muiden kuin Helsingin kaupungin tulee rakentaa "),
-        html.Span("%d kWp" % (1000 * nkwpa * (100 - CITY_OWNED) / 100), className='summary-card__value'),
-        html.Span(" vuodessa."),
-    ])
 
     sticky = StickyBar(
         label='Aurinkosähkön tuotanto',
-        value=forecast, goal=SOLAR_POWER_GOAL,
-        unit='GWh', current_page=page, below_goal_good=False,
+        value=forecast, unit='GWh', current_page=page,
     )
 
     return [fig_old, fig_new, fig_tot, fig_emissions, existing_kwpa, new_kwpa, sticky.render()]

@@ -103,11 +103,15 @@ class PredictionFigureSeries:
 
         if self.luminance_change:
             luminance = color.get_luminance()
+            saturation = color.get_luminance()
             if self.luminance_change < 0:
                 luminance = luminance * (1 + self.luminance_change)
+                saturation = saturation * (1 + self.luminance_change)
             else:
                 luminance = luminance + (1 - luminance) * self.luminance_change
+                saturation = saturation + (1 - saturation) * self.luminance_change
             color.set_luminance(luminance)
+            color.set_saturation(saturation)
 
         if forecast:
             # Lighten forecast series by 30 %
@@ -273,6 +277,7 @@ class PredictionFigure:
             ),
             hovermode='closest',
             height=450,
+            transition={'duration': 500},
             **layout_args,
         )
 

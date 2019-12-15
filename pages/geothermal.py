@@ -1,0 +1,203 @@
+import dash_html_components as html
+
+from calc.geothermal import predict_geothermal_production
+from calc.electricity import predict_electricity_emission_factor
+from calc.district_heating import predict_district_heating_emissions
+from components.cards import ConnectedCardGrid
+from components.graphs import PredictionFigure
+
+from components.card_description import CardDescription
+from variables import get_variable
+from .base import Page
+
+
+class GeothermalPage(Page):
+    id = 'geothermal-heating'
+    path = '/maalampo'
+    emission_sector = ('BuildingHeating', 'GeothermalHeating')
+
+    def make_cards(self):
+        max_perc = 40
+        self.add_graph_card(
+            id='renovated-per-year',
+            slider=dict(
+                min=0,
+                max=max_perc,
+                step=1,
+                value=int(self.get_variable('geothermal_existing_building_renovation') * 10),
+                marks={x: '%d %%' % (x / 10) for x in range(0, max_perc + 1, 10)},
+            ),
+        )
+        self.add_graph_card(
+            id='new-building-installation',
+            slider=dict(
+                min=0,
+                max=100,
+                step=10,
+                value=get_variable('geothermal_new_building_installation_share'),
+                marks={x: '%d %%' % x for x in range(0, 100 + 1, 10)},
+            ),
+        )
+        self.add_graph_card(id='geothermal-production')
+        self.add_graph_card(id='emissions')
+        self.add_graph_card(id='electricity-emission-factor')
+        self.add_graph_card(id='district-heat-emission-factor')
+
+    def get_content(self):
+        grid = ConnectedCardGrid()
+
+        grid.make_new_row()
+        c1a = self.get_card('renovated-per-year')
+        grid.add_card(c1a)
+        c1b = self.get_card('new-building-installation')
+        grid.add_card(c1b)
+
+        """
+        grid.make_new_row()
+        c2a = self.get_card('boreholes-existing-buildings')
+        c2b = self.get_card('boreholes-new-buildings')
+        grid.add_card(c2a)
+        grid.add_card(c2b)
+        c1a.connect_to(c2a)
+        c1b.connect_to(c2b)
+        """
+
+        grid.make_new_row()
+        c3a = self.get_card('geothermal-production')
+        c3b = self.get_card('electricity-emission-factor')
+        c3c = self.get_card('district-heat-emission-factor')
+        grid.add_card(c3a)
+        grid.add_card(c3b)
+        grid.add_card(c3c)
+        c1a.connect_to(c3a)
+        c1b.connect_to(c3a)
+
+        grid.make_new_row()
+        c4 = self.get_card('emissions')
+        grid.add_card(c4)
+        c3a.connect_to(c4)
+        c3b.connect_to(c4)
+        c3c.connect_to(c4)
+
+        return grid.render()
+
+    def get_summary_vars(self):
+        return dict()
+
+    def refresh_graph_cards(self):
+        ecard = self.get_card('renovated-per-year')
+        self.set_variable('geothermal_existing_building_renovation', ecard.get_slider_value() / 10)
+        ncard = self.get_card('new-building-installation')
+        self.set_variable('geothermal_new_building_installation_share', ncard.get_slider_value())
+
+        df = predict_geothermal_production()
+
+        fig = PredictionFigure(
+            sector_name='BuildingHeating',
+            unit_name='milj. k-m²',
+            title='Olemassaolevan rakennuskannan maalämmöllä lämmitettävä kerrosala',
+            smoothing=True,
+            y_max=25,
+        )
+        fig.add_series(
+            df=df, column_name='GeoBuildingNetAreaExisting', trace_name='Kerrosala',
+        )
+        ecard.set_figure(fig)
+
+        org_owned = self.get_variable('building_area_owned_by_org') / 100
+        cd = CardDescription()
+
+        first_forecast = df[df.Forecast].iloc[0]
+        last_forecast = df.iloc[-1]
+
+        cd.set_values(
+            existing_building_perc=self.get_variable('geothermal_existing_building_renovation'),
+            existing_building_area=last_forecast.GeoBuildingNetAreaExisting,
+            boreholes_org=first_forecast.BoreholesPerYear * org_owned,
+            boreholes_others=first_forecast.BoreholesPerYear * (1 - org_owned),
+            borehole_area=last_forecast.BoreholeAreaNeeded,
+            borehole_depth=self.get_variable('geothermal_borehole_depth'),
+            new_building_perc=self.get_variable('geothermal_new_building_installation_share'),
+            new_building_area=last_forecast.GeoBuildingNetAreaNew,
+        )
+        ecard.set_description(cd.render("""
+        Kun olemassaolevasta rakennuskannasta remontoidaan {existing_building_perc:noround} %
+        joka vuosi ja vaihdetaan lämmitystavaksi maalämpö, vuonna {target_year} maalämmöllä
+        lämmitetään {existing_building_area} milj. kerrosneliömetriä. Skenaarion toteutumiseksi
+        {org_genitive} pitää rakentaa ensi vuonna {boreholes_org} maalämpökaivoa, kun oletetaan kaivon
+        syvyydeksi {borehole_depth} m. Muiden pitää rakentaa ensi vuonna {boreholes_others} kaivoa.
+        """))
+
+        ncard.set_description(cd.render("""
+        Kun uudesta rakennuskannasta {new_building_perc:noround} % rakennetaan maalämmöllä,
+        vuonna {target_year} lämmitetään maalämmöllä {new_building_area} milj. kerrosneliömetriä.
+        |p|Vanhan ja uuden rakennuskannan maalämpökaivot tarvitsevat silloin yhteensä {borehole_area} km²
+        pinta-alaa.
+        """))
+        fig = PredictionFigure(
+            sector_name='BuildingHeating',
+            unit_name='milj. k-m²',
+            title='Uuden rakennuskannan maalämmöllä lämmitettävä kerrosala',
+            smoothing=True,
+        )
+        fig.add_series(
+            df=df, column_name='GeoBuildingNetAreaNew', trace_name='Kerrosala',
+        )
+        ncard.set_figure(fig)
+
+        card = self.get_card('geothermal-production')
+        fig = PredictionFigure(
+            sector_name='BuildingHeating',
+            unit_name='GWh',
+            title='Maalämpötuotanto',
+            smoothing=True,
+            fill=True,
+        )
+        fig.add_series(
+            df=df, column_name='GeoEnergyProductionExisting', trace_name='Vanha rakennuskanta',
+        )
+        fig.add_series(
+            df=df, column_name='GeoEnergyProductionNew', trace_name='Uusi rakennuskanta',
+        )
+        card.set_figure(fig)
+
+        # District heat
+        dhdf = predict_district_heating_emissions()
+        card = self.get_card('district-heat-emission-factor')
+        fig = PredictionFigure(
+            sector_name='BuildingHeating',
+            unit_name='g/kWh',
+            title='Kaukolämmöntuotannon päästökerroin',
+            smoothing=True,
+        )
+        fig.add_series(
+            df=dhdf, column_name='Emission factor', trace_name='Päästökerroin'
+        )
+        card.set_figure(fig)
+
+        # Electricity
+        edf = predict_electricity_emission_factor()
+        card = self.get_card('electricity-emission-factor')
+        fig = PredictionFigure(
+            sector_name='ElectricityConsumption',
+            unit_name='g/kWh',
+            title='Sähköntuotannon päästökerroin',
+            smoothing=True,
+        )
+        fig.add_series(
+            df=edf, column_name='EmissionFactor', trace_name='Päästökerroin'
+        )
+        card.set_figure(fig)
+
+        card = self.get_card('emissions')
+        fig = PredictionFigure(
+            sector_name='BuildingHeating',
+            unit_name='kt',
+            title='Maalämmön nettopäästöt',
+            smoothing=True,
+            fill=True,
+        )
+        fig.add_series(
+            df=df, column_name='NetEmissions', trace_name='Päästöt'
+        )
+        card.set_figure(fig)

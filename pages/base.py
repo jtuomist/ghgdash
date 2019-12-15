@@ -2,12 +2,14 @@ import flask
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-from components.emission_nav import make_emission_nav
+from components.cards import GraphCard
+from components.stickybar import StickyBar
 
-from dash.dependencies import Output
+from dash.dependencies import Output, Input
 from flask import session
 
 from calc.emissions import SECTORS
+from variables import get_variable, set_variable
 
 
 class Page:
@@ -42,12 +44,65 @@ class Page:
                 self.name = sector['name']
 
         self.callbacks = []
+        self.graph_cards = {}
+
+    def get_variable(self, name):
+        return get_variable(name)
+
+    def set_variable(self, name, val):
+        return set_variable(name, val)
+
+    def get_callback_info(self):
+        outputs = []
+        inputs = []
+        for card_id, card in self.graph_cards.items():
+            if card.slider:
+                inputs.append(Input(card_id + '-slider', 'value'))
+            outputs.append(Output(card_id + '-description', 'children'))
+            outputs.append(Output(card_id + '-graph', 'figure'))
+
+        outputs.append(Output(self.make_id('left-nav'), 'children'))
+        outputs.append(Output(self.make_id('summary-bar'), 'children'))
+
+        return (inputs, outputs)
+
+    def handle_callback(self, inputs):
+        self.make_cards()
+
+        slider_cards = []
+        output_cards = []
+        for card_id, card in self.graph_cards.items():
+            if card.slider:
+                slider_cards.append(card)
+            output_cards.append(card)
+
+        for card, val in zip(slider_cards, inputs):
+            card.set_slider_value(val)
+
+        self.refresh_graph_cards()
+        outputs = []
+        for card in output_cards:
+            desc = card.get_description()
+            if desc is not None:
+                desc = dbc.Col(desc, style=dict(minHeight='8rem'))
+            outputs.append(desc)
+            fig = card.get_figure()
+            outputs.append(fig)
+
+        outputs.append(self._make_emission_nav())
+        outputs.append(self._make_summary_bar())
+
+        return outputs
 
     def __str__(self):
         return self.name
 
     def make_id(self, name):
         return '%s-%s' % (self.id, name)
+
+    def _make_emission_nav(self):
+        from components.emission_nav import make_emission_nav
+        return make_emission_nav(self)
 
     def _make_navbar(self):
         if flask.has_request_context():
@@ -81,7 +136,7 @@ class Page:
             ])),
         ]
         return dbc.NavbarSimple(
-            brand="Päästöskenaario 2035",
+            brand="Päästöskenaario %s" % self.get_variable('target_year'),
             brand_href="/",
             color="primary",
             dark=True,
@@ -89,8 +144,22 @@ class Page:
             children=els
         )
 
+    def _make_summary_bar(self):
+        bar = StickyBar(current_page=self, **self.get_summary_vars())
+        return html.Div(
+            id=self.make_id('summary-bar'),
+            children=bar.render()
+        )
+
     def _make_page_contents(self):
-        content = self.get_content()
+        if hasattr(self, 'get_content'):
+            # Class-based (new-style) page
+            content = self.get_content()
+        else:
+            if callable(self.content):
+                content = self.content()
+            else:
+                content = self.content
 
         page_content = html.Div([
             html.H2(self.name), content
@@ -101,8 +170,9 @@ class Page:
             self._make_navbar(),
             dbc.Container(
                 dbc.Row([
-                    dbc.Col(id=self.make_id('left-nav'), md=2, children=make_emission_nav(self)),
-                    dbc.Col(md=10, children=page_content)
+                    dbc.Col(id=self.make_id('left-nav'), md=2, children=self._make_emission_nav()),
+                    dbc.Col(md=10, children=page_content),
+                    html.Div(id=self.make_id('summary-bar')),
                 ]),
                 className="app-content",
                 fluid=True
@@ -110,15 +180,25 @@ class Page:
         ])
         return ret
 
+    def make_cards(self):
+        pass
+
     def render(self):
+        self.make_cards()
         return html.Div(self._make_page_contents(), id=self.make_id('page-content'))
 
-    def get_content(self):
-        if callable(self.content):
-            content = self.content()
-        else:
-            content = self.content
-        return content
+    def add_graph_card(self, id, **kwargs):
+        card_id = self.make_id(id)
+        assert card_id not in self.graph_cards
+        card = GraphCard(id=card_id, **kwargs)
+        self.graph_cards[card_id] = card
+        return card
+
+    def get_card(self, id):
+        return self.graph_cards[self.make_id(id)]
+
+    def set_graph_figure(self, card_id, figure):
+        self.graph_cards[card_id].set_grap
 
     def callback(self, inputs, outputs):
         assert isinstance(inputs, list)
@@ -128,7 +208,7 @@ class Page:
             def call_func(*args):
                 ret = func(*args)
                 assert isinstance(ret, list)
-                return ret + [make_emission_nav(self)]
+                return ret + [self._make_emission_nav()]
 
             self.callbacks.append(call_func)
 

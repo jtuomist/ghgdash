@@ -85,13 +85,14 @@ def generate_page():
     emissions_card = GraphCard(
         id='cars-emissions',
     )
+    """
     biofuel_card = GraphCard(
         id='cars-biofuel-percentage',
     )
-
+    """
     grid.make_new_row()
     grid.add_card(bev_perc_card)
-    grid.add_card(biofuel_card)
+    #grid.add_card(biofuel_card)
     grid.add_card(per_resident_card)
     grid.make_new_row()
     grid.add_card(emission_factor_card)
@@ -100,7 +101,7 @@ def generate_page():
     grid.add_card(emissions_card)
 
     bev_perc_card.connect_to(emission_factor_card)
-    biofuel_card.connect_to(emission_factor_card)
+    #biofuel_card.connect_to(emission_factor_card)
     emission_factor_card.connect_to(emissions_card)
 
     per_resident_card.connect_to(mileage_card)
@@ -126,7 +127,7 @@ page = Page(
     Input('cars-mileage-per-resident-slider', 'value'),
 ], outputs=[
     Output('cars-bev-percentage-graph', 'figure'),
-    Output('cars-biofuel-percentage-graph', 'figure'),
+    # Output('cars-biofuel-percentage-graph', 'figure'),
     Output('cars-emission-factor-graph', 'figure'),
     Output('cars-mileage-per-resident-graph', 'figure'),
     Output('cars-total-mileage-graph', 'figure'),
@@ -141,6 +142,7 @@ def cars_callback(bev_percentage, mileage_adj):
     df['Mileage'] /= 1000000
 
     bev_chart = draw_bev_chart(df)
+    """
     graph = PredictionFigure(
         sector_name='Transportation',
         unit_name='%',
@@ -150,6 +152,7 @@ def cars_callback(bev_percentage, mileage_adj):
         df=df, column_name='electric', trace_name='Bion osuus'
     )
     biofuel_chart = graph.get_figure()
+    """
 
     graph = PredictionFigure(
         sector_name='Transportation',
@@ -197,7 +200,7 @@ def cars_callback(bev_percentage, mileage_adj):
     sticky = make_bottom_bar(df)
 
     return [
-        bev_chart, biofuel_chart, emission_factor_chart,
+        bev_chart, emission_factor_chart,
         per_resident_chart, mileage_chart,
         emissions_chart, sticky
     ]

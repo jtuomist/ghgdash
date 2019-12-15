@@ -244,11 +244,22 @@ def calc_district_heating_unit_emissions_forecast(variables, datasets):
 
 
 @calcfunc(
-    funcs=[calc_district_heating_unit_emissions_forecast]
+    funcs=[
+        calc_district_heating_unit_emissions_forecast,
+        'geothermal.predict_geothermal_production'
+    ]
 )
 def predict_district_heating_emissions():
-    production_df, fuel_use_df = calc_district_heating_unit_emissions_forecast()
-    return production_df
+    from .geothermal import predict_geothermal_production
+
+    pdf, fuel_use_df = calc_district_heating_unit_emissions_forecast()
+    geodf = predict_geothermal_production()
+    geodf = geodf[geodf.Forecast]
+    pdf['GeothermalProduction'] = geodf['GeoEnergyProduction']
+    pdf['GeothermalProduction'].fillna(0)
+    pdf['NetHeatDemand'] = pdf['Heat demand'] - pdf['GeothermalProduction']
+    pdf['NetEmissions'] = pdf['NetHeatDemand'] * pdf['Emission factor'] / 1000
+    return pdf
 
 
 @calcfunc(
@@ -259,8 +270,10 @@ def get_district_heating_reduction_contributors():
 
 
 if __name__ == '__main__':
-    df1, df2 = calc_district_heating_unit_emissions_forecast()
-    from utils.data import get_contributions_from_multipliers
+    #df1, df2 = calc_district_heating_unit_emissions_forecast()
+    #from utils.data import get_contributions_from_multipliers
     #######
-    df = get_contributions_from_multipliers(df1, 'Emission factor', 'Heat demand')
-    print(df)
+    #df = get_contributions_from_multipliers(df1, 'Emission factor', 'Heat demand')
+    #print(df)
+    predict_district_heating_emissions()
+

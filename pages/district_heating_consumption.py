@@ -6,6 +6,7 @@ from babel.numbers import format_decimal
 
 from calc.district_heating import predict_district_heating_emissions
 from calc.district_heating_consumption import predict_district_heat_consumption
+from calc.geothermal import predict_geothermal_production
 from variables import set_variable, get_variable
 from components.stickybar import StickyBar
 from components.graphs import PredictionFigure
@@ -51,6 +52,7 @@ def draw_heat_consumption(df):
         stacked=True,
         fill=True,
     )
+
     graph.add_series(
         df=df, column_name='ExistingBuildingHeatUse', trace_name='Vanhat rakennukset',
     )
@@ -130,9 +132,15 @@ def generate_page():
             marks={x: '%.1f %%' % (x / 10) for x in range(-60, 20 + 1, 10)},
         ),
     )
+    geo_card = GraphCard(
+        id='district-heating-geothermal-production',
+        link_to_page=('BuildingHeating', 'GeothermalHeating')
+    )
+
     row = grid.make_new_row()
     row.add_card(existing_card)
     row.add_card(new_card)
+    row.add_card(geo_card)
 
     consumption_card = GraphCard(
         id='district-heating-consumption',
@@ -140,6 +148,8 @@ def generate_page():
     )
     existing_card.connect_to(consumption_card)
     new_card.connect_to(consumption_card)
+    geo_card.connect_to(consumption_card)
+
     row = grid.make_new_row()
     row.add_card(consumption_card)
 
@@ -169,6 +179,7 @@ page = Page(
 ], outputs=[
     Output('district-heating-existing-building-unit-heat-factor-graph', 'figure'),
     Output('district-heating-new-building-unit-heat-factor-graph', 'figure'),
+    Output('district-heating-geothermal-production-graph', 'figure'),
     Output('district-heating-consumption-graph', 'figure'),
     Output('district-heating-unit-emissions-card', 'children'),
     Output('district-heating-consumption-emissions-graph', 'figure'),
@@ -181,6 +192,25 @@ def district_heating_consumption_callback(existing_building_perc, new_building_p
     df = predict_district_heat_consumption()
     fig1 = draw_existing_building_unit_heat_factor_graph(df)
     fig2 = draw_new_building_unit_heat_factor_graph(df)
+
+    geo_df = predict_geothermal_production()
+    geo_df = geo_df[geo_df.Forecast]
+    df['GeoEnergyProductionExisting'] = geo_df['GeoEnergyProductionExisting']
+    df['GeoEnergyProductionNew'] = geo_df['GeoEnergyProductionNew']
+
+    df['ExistingBuildingHeatUse'] -= df['GeoEnergyProductionExisting'].fillna(0)
+    df['NewBuildingHeatUse'] -= df['GeoEnergyProductionNew'].fillna(0)
+
+    geo_fig = PredictionFigure(
+        sector_name='BuildingHeating',
+        unit_name='GWh',
+        title='Maalämmöllä korvattu kaukolämpö',
+        fill=True,
+    )
+    geo_fig.add_series(
+        df=geo_df, column_name='GeoEnergyProduction', trace_name='Maalämpötuotanto',
+    )
+
     fig3 = draw_heat_consumption(df)
 
     df = predict_district_heating_emissions()
@@ -188,4 +218,4 @@ def district_heating_consumption_callback(existing_building_perc, new_building_p
     fig4 = draw_district_heat_consumption_emissions(df)
     sticky = make_bottom_bar(df)
 
-    return [fig1, fig2, fig3, unit_emissions_card, fig4, sticky]
+    return [fig1, fig2, geo_fig.get_figure(), fig3, unit_emissions_card, fig4, sticky]

@@ -7,7 +7,7 @@ from components.graphs import PredictionFigure
 from components.stickybar import StickyBar
 from variables import get_variable
 from calc.emissions import predict_emissions, SECTORS
-from pages import get_page_for_emission_sector
+from pages.routing import get_page_for_emission_sector
 from .base import Page
 
 

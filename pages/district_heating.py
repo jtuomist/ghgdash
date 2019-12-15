@@ -10,6 +10,7 @@ from dash.dependencies import Input, Output
 from calc.district_heating import calc_district_heating_unit_emissions_forecast
 from components.cards import GraphCard
 from components.graphs import PredictionFigure
+from components.stickybar import StickyBar
 from variables import get_variable, set_variable
 from .base import Page
 
@@ -17,7 +18,7 @@ from .base import Page
 def generate_district_heating_forecast_graph(df):
     graph = PredictionFigure(
         sector_name='BuildingHeating',
-        unit_name='kt',
+        unit_name='kt/vuosi',
         title='Kaukolämmön kulutuksen päästöt',
         smoothing=True,
         allow_nonconsecutive_years=True,
@@ -98,31 +99,33 @@ def generate_district_heating_forecast_table(df):
     return table
 
 
-ratio_sliders = []
+ratio_slider_ids = [
+    'district-heating-%s' % x.lower().replace(' ', '_')
+    for x in get_variable('district_heating_target_production_ratios').keys()
+]
 
 
 def generate_ratio_sliders():
     ratios = get_variable('district_heating_target_production_ratios')
     eles = []
-    for method, ratio in ratios.items():
+    for (method, ratio), slider_id in zip(ratios.items(), ratio_slider_ids):
         header = html.H5(method, className='mt-4')
-        slug = method.lower().replace(' ', '_')
         slider = dcc.Slider(
-            id='district-heating-%s' % slug,
+            id=slider_id,
             max=100,
             min=0,
             step=5,
             value=ratio,
         )
         slider.method = method
-        ratio_sliders.append(slider)
         eles.append(header)
         eles.append(slider)
     return eles
 
 
 def render_page():
-    content = dbc.Row([
+    els = []
+    els.append(dbc.Row([
         dbc.Col([
             GraphCard(id='district-heating-production').render(),
             html.Div(id='district-heating-table-container'),
@@ -142,8 +145,9 @@ def render_page():
             html.H5('Tuotantotapaosuudet 2035', className='mt-4'),
             dcc.Graph(id='district-heating-production-source-graph'),
         ], md=4),
-    ])
-    return content
+    ]))
+    els.append(html.Div(id='district-heating-prod-sticky-page-summary-container'))
+    return html.Div(els)
 
 
 page = Page(
@@ -160,9 +164,10 @@ page = Page(
         Output('district-heating-production-graph', 'figure'),
         Output('district-heating-table-container', 'children'),
         Output('district-heating-production-source-graph', 'figure'),
+        Output('district-heating-prod-sticky-page-summary-container', 'children'),
     ], inputs=[
         Input('bio-emission-factor', 'value'),
-        *[Input(s.id, 'value') for s in ratio_sliders]
+        *[Input(s, 'value') for s in ratio_slider_ids]
     ],
 )
 def district_heating_callback(bio_emission_factor, *args):
@@ -173,8 +178,8 @@ def district_heating_callback(bio_emission_factor, *args):
     total_sum = sum(args)
     shares = [val / total_sum for val in args]
 
-    for slider, share in zip(ratio_sliders, shares):
-        ratios[slider.method] = int(share * 100)
+    for method, share in zip(ratios.keys(), shares):
+        ratios[method] = int(share * 100)
 
     diff = 100 - sum(ratios.values())
     ratios[list(ratios.keys())[0]] += diff
@@ -187,4 +192,10 @@ def district_heating_callback(bio_emission_factor, *args):
 
     fuel_fig = generate_production_mix_graph(production_source)
 
-    return [fig, table, fuel_fig]
+    last_row = production_stats.iloc[-1]
+    sticky = StickyBar(
+        label='Kaukolämmöntuotannon päästökerroin', value=last_row['Emission factor'], unit='g/kWh',
+        current_page=page,
+    )
+
+    return [fig, table, fuel_fig, sticky.render()]

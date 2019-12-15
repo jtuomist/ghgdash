@@ -1,4 +1,3 @@
-import pandas as pd
 from dataclasses import dataclass
 import dash_html_components as html
 import dash_bootstrap_components as dbc
@@ -7,25 +6,40 @@ import plotly.graph_objs as go
 
 from variables import get_variable
 from calc.emissions import predict_emissions, get_sector_by_path
-from pages.base import Page
 
 
 @dataclass
 class StickyBar:
-    label: str
-    value: float
-    goal: float
-    unit: str
-    current_page: Page = None
+    label: str = None
+    value: float = None
+    unit: str = None
+    goal: float = None
+    current_page: object = None
     below_goal_good: bool = True
 
-    def _render_emissions_bar(self):
+    def _calc_emissions(self):
         df = predict_emissions()
         forecast = df.pop('Forecast')
+        self.emissions_df = df
+
+        df = df.sum(axis=1)
+        self.last_historical_year = df.loc[~forecast].index.max()
+        self.target_year = get_variable('target_year')
+        ref_year = get_variable('ghg_reductions_reference_year')
+        perc = get_variable('ghg_reductions_percentage_in_target_year')
+        ref_emissions = df.loc[ref_year]
+        last_emissions = df.loc[self.last_historical_year]
+        target_emissions = ref_emissions * (1 - perc / 100)
+        self.target_emissions = target_emissions
+        self.needed_reductions = last_emissions - target_emissions
+        self.scenario_emissions = df.loc[self.target_year]
+        self.scenario_reductions = last_emissions - self.scenario_emissions
+
+    def _render_emissions_bar(self):
+        df = self.emissions_df
 
         df = df.sum(axis=1, level=0)
-        last_historical_year = df.loc[~forecast].index.max()
-        start_s = df.loc[last_historical_year]
+        start_s = df.loc[self.last_historical_year]
         target_s = df.iloc[-1]
         reductions = (start_s - target_s).sort_values(ascending=False)
         traces = []
@@ -38,18 +52,12 @@ class StickyBar:
             else:
                 active = False
 
-            """
-            if sector_name == 'BuildingHeating':
-                bars = self.render_building_heating()
-            """
-
-            print(sector_metadata)
             bar = dict(
                 type='bar',
                 x=[emissions],
                 name=sector_metadata['name'],
                 orientation='h',
-                hovertemplate='%{x: .0f}',
+                hovertemplate='%{x: .0f} kt',
                 marker=dict(
                     color=sector_metadata['color']
                 )
@@ -61,11 +69,26 @@ class StickyBar:
                 ))
             traces.append(bar)
 
-        sum_reductions = reductions.sum()
+        if self.scenario_reductions >= self.needed_reductions:
+            range_max = self.scenario_reductions
+        else:
+            bar = dict(
+                type='bar',
+                x=[self.needed_reductions - self.scenario_reductions],
+                name='Tavoitteesta puuttuu',
+                orientation='h',
+                hovertemplate='%{x: .0f} kt',
+                marker=dict(
+                    color='#888'
+                ),
+                opacity=0.5,
+            )
+            traces.append(bar)
+            range_max = self.needed_reductions
 
-        fig = go.Figure(
+        fig = dict(
             data=traces,
-            layout=go.Layout(
+            layout=dict(
                 xaxis=dict(
                     showgrid=False,
                     showline=False,
@@ -73,7 +96,7 @@ class StickyBar:
                     zeroline=False,
                     domain=[0.15, 1],
                     autorange=False,
-                    range=[0, sum_reductions],
+                    range=[0, range_max],
                 ),
                 yaxis=dict(
                     showgrid=False,
@@ -95,6 +118,7 @@ class StickyBar:
                 autosize=True,
                 clickmode='none',
                 dragmode=False,
+                transition={'duration': 500},
             )
         )
 
@@ -108,33 +132,57 @@ class StickyBar:
         )
         return graph
 
-    def render(self):
-        if (self.value <= self.goal and self.below_goal_good) or \
-                (self.value >= self.goal and not self.below_goal_good):
-            sticky_class = 'page-summary__total--good'
+    def _render_value_summary(self, value, goal, label, unit, below_goal_good):
+        classes = []
+        if goal is not None:
+            if (value <= goal and below_goal_good) or \
+                    (value >= goal and not below_goal_good):
+                classes.append('page-summary__total--good')
+            else:
+                classes.append('page-summary__total--bad')
+
+            target_el = html.Div([
+                "tavoite %.0f" % goal,
+                html.Span(" %s" % unit, className="unit")
+            ], className="page-summary__target")
         else:
-            sticky_class = 'page-summary__total--bad'
+            target_el = None
 
-        target_year = get_variable('target_year')
+        classes.append('page-summary__total')
 
-        summary = dbc.Col([
-            html.H6(f'{self.label} ({target_year})'),
+        summary = [
+            html.H6(f'{label} ({self.target_year})'),
             html.Div([
                 html.Div([
-                    "%.0f" % self.value,
-                    html.Span(" %s" % self.unit, className="unit")
-                ], className="page-summary__total " + sticky_class),
-                html.Div([
-                    "tavoite %.0f" % self.goal,
-                    html.Span(" %s" % self.unit, className="unit")
-                ], className="page-summary__target")
+                    "%.0f" % value,
+                    html.Span(" %s" % unit, className="unit")
+                ], className=' '.join(classes)),
+                target_el,
             ], className="page-summary__totals"),
-        ], md=6)
+        ]
+        return summary
 
+    def render(self):
+        self._calc_emissions()
         pötkylä = dbc.Col([
-            html.H6('Päästövähennykset'),
+            html.H6('Skenaarion mukaiset päästövähennykset %s–%s' % (self.last_historical_year, self.target_year)),
             self._render_emissions_bar()
         ], md=6)
+
+        emissions_summary = self._render_value_summary(
+            self.scenario_emissions, self.target_emissions, 'Kaikki päästöt yhteensä',
+            'kt/vuosi', True
+        )
+        emissions_summary = dbc.Col(emissions_summary, md=3)
+
+        if self.value is not None:
+            summary = self._render_value_summary(
+                self.value, self.goal, self.label, self.unit, self.below_goal_good
+            )
+            summary = dbc.Col(summary, md=3)
+        else:
+            summary = dbc.Col(md=3)
+
         return dbc.Alert([
-            dbc.Row([pötkylä, summary])
+            dbc.Row([pötkylä, summary, emissions_summary])
         ], className="page-summary fixed-bottom")

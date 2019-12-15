@@ -2,6 +2,7 @@ import pandas as pd
 
 from .district_heating import predict_district_heating_emissions
 from .electricity import predict_electricity_consumption_emissions
+from .geothermal import predict_geothermal_production
 from .cars import predict_cars_emissions
 from . import calcfunc
 from utils.colors import GHG_MAIN_SECTOR_COLORS
@@ -118,7 +119,7 @@ def prepare_emissions_dataset(datasets) -> pd.DataFrame:
     funcs=[
         prepare_emissions_dataset, predict_district_heating_emissions,
         predict_electricity_consumption_emissions,
-        predict_cars_emissions,
+        predict_cars_emissions, predict_geothermal_production,
     ],
 )
 def predict_emissions(variables, datasets):
@@ -149,13 +150,17 @@ def predict_emissions(variables, datasets):
 
     pdf = predict_district_heating_emissions()
     df.loc[df.index > last_historical_year, ('BuildingHeating', 'DistrictHeat')] = \
-        pdf.loc[pdf.index > last_historical_year, 'District heat consumption emissions']
+        pdf.loc[pdf.index > last_historical_year, 'NetEmissions']
 
     pdf = predict_electricity_consumption_emissions()
     df.loc[df.index > last_historical_year, ('ElectricityConsumption', '')] = \
+        pdf.loc[pdf.index > last_historical_year, 'NetEmissions']
+
+    pdf = predict_geothermal_production()
+    df.loc[df.index > last_historical_year, ('BuildingHeating', 'GeothermalHeating')] = \
         pdf.loc[pdf.index > last_historical_year, 'Emissions']
 
-    df[('ElectricityConsumption', 'SolarProduction')] = None # -pdf['SolarEmissionReductions']
+    df[('ElectricityConsumption', 'SolarProduction')] = None
 
     pdf = predict_cars_emissions()
     df.loc[df.index > last_historical_year, ('Transportation', 'Cars')] = \

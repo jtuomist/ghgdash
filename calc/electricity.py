@@ -178,9 +178,13 @@ def predict_electricity_consumption_emissions():
     udf = predict_electricity_emission_factor()
     sdf = predict_solar_power_production()
     cdf['EmissionFactor'] = udf['EmissionFactor']
+    cdf['SolarProduction'] = sdf['SolarProduction'][sdf.Forecast]
+    cdf['NetConsumption'] = cdf['ElectricityConsumption'] - cdf['SolarProduction'].fillna(0)
+
     cdf['Emissions'] = cdf['ElectricityConsumption'] * cdf['EmissionFactor'] / 1000
-    cdf['SolarProduction'] = sdf['SolarProduction']
     cdf['SolarEmissionReductions'] = cdf['SolarProduction'] * cdf['EmissionFactor'] / 1000
+    cdf['NetEmissions'] = cdf['Emissions'] - cdf['SolarEmissionReductions']
+
     return cdf
 
 

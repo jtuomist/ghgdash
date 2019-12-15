@@ -2,7 +2,7 @@ import pandas as pd
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 
-from pages import get_page_for_emission_sector
+from pages.routing import get_page_for_emission_sector
 from calc.emissions import predict_emissions, SECTORS
 
 from variables import get_variable

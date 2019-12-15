@@ -5,7 +5,7 @@ import os
 from flask_session import Session
 from flask_babel import Babel
 
-from layout import generate_layout, register_callbacks
+from layout import initialize_app
 from common import cache
 
 os.environ['DASH_PRUNE_ERRORS'] = 'False'
@@ -27,8 +27,7 @@ with server.app_context():
     babel = Babel(server)
 
 
-app.layout = generate_layout
-register_callbacks(app)
+initialize_app(app)
 
 if __name__ == '__main__':
     # Write the process pid to a file for easier profiling with py-spy

@@ -22,6 +22,7 @@ VARIABLE_DEFAULTS = {
     'population_forecast_correction': 0,  # Percent in target year
     'ghg_reductions_reference_year': 1990,
     'ghg_reductions_percentage_in_target_year': 80,
+    'building_area_owned_by_org': 19,  # percent of all area
     'ghg_emission_targets': [
         {
             'year': 2030,
@@ -49,6 +50,8 @@ VARIABLE_DEFAULTS = {
     'bio_emission_factor': 0,  # In percents
 
     'municipality_name': 'Helsinki',
+    'org_genitive': 'Helsingin kaupunkikonsernin',
+    'org_nominative': 'Helsingin kaupunkikonserni',
 
     'district_heating_operator': '005',  # Helen Oy
     'district_heating_target_production_ratios': {
@@ -74,6 +77,9 @@ VARIABLE_DEFAULTS = {
     'vehicle_fuel_bio_percentage': 30,
 
     'geothermal_heat_pump_cop': 3.2,
+    'geothermal_existing_building_renovation': 1.0,  # percent per year
+    'geothermal_new_building_installation_share': 50,  # percent per year
+    'geothermal_borehole_depth': 500,  # meters
 }
 
 

@@ -12,3 +12,6 @@ class BuildingHeatingPage(Page):
     def get_content(self):
         df = predict_emissions()
         return html.Div('moi')
+
+    def get_summary_vars(self):
+        return dict()

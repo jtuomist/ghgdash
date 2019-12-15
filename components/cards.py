@@ -8,7 +8,7 @@ import dash_html_components as html
 import dash_core_components as dcc
 
 from utils.colors import ARCHER_STROKE
-from .graphs import Graph
+from .graphs import Graph, PredictionFigure
 
 
 class ConnectedCardBase:
@@ -60,6 +60,9 @@ class GraphCard(ConnectedCardBase):
 
     def __post_init__(self):
         super().__init__(self.id)
+        if self.graph is None:
+            self.graph = {}
+        self.description = None
 
     def render(self, is_top_row: bool = True) -> dbc.Card:
         graph = Graph(self.id, self.graph, self.slider)
@@ -67,13 +70,39 @@ class GraphCard(ConnectedCardBase):
         card = dbc.Card(
             dbc.CardBody(children=[
                 html.Div(graph.render(), className="slider-card__content"),
+                dbc.Row(id=self.id + '-description'),
                 self.extra_content,
             ]), className=' '.join(classes),
         )
         if self.link_to_page:
-            return dcc.Link(children=card, href=self.link_to_page.path)
+            if isinstance(self.link_to_page, tuple):
+                from pages.routing import get_page_for_emission_sector
+                page = get_page_for_emission_sector(*self.link_to_page)
+            else:
+                page = self.link_to_page
+            return dcc.Link(children=card, href=page.path)
         else:
             return card
+
+    def set_figure(self, figure):
+        if isinstance(figure, PredictionFigure):
+            figure = figure.get_figure()
+        self.graph['figure'] = figure
+
+    def get_figure(self):
+        return self.graph.get('figure')
+
+    def set_description(self, description):
+        self.description = description
+
+    def get_description(self):
+        return self.description
+
+    def set_slider_value(self, val):
+        self.slider['value'] = val
+
+    def get_slider_value(self):
+        return self.slider['value']
 
 
 class ConnectedCardGridRow:
