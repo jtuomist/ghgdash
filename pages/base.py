@@ -146,10 +146,7 @@ class Page:
 
     def _make_summary_bar(self):
         bar = StickyBar(current_page=self, **self.get_summary_vars())
-        return html.Div(
-            id=self.make_id('summary-bar'),
-            children=bar.render()
-        )
+        return bar.render()
 
     def _make_page_contents(self):
         if hasattr(self, 'get_content'):

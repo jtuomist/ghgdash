@@ -52,6 +52,8 @@ VARIABLE_DEFAULTS = {
     'municipality_name': 'Helsinki',
     'org_genitive': 'Helsingin kaupunkikonsernin',
     'org_nominative': 'Helsingin kaupunkikonserni',
+    'municipality_genitive': 'Helsingin',
+    'municipality_locative': 'Helsingissä',
 
     'district_heating_operator': '005',  # Helen Oy
     'district_heating_target_production_ratios': {
@@ -62,11 +64,11 @@ VARIABLE_DEFAULTS = {
     },
     'district_heating_target_demand_change': 0,
 
-    'district_heating_existing_building_efficiency_change': -2.5,  # Percent per year
+    'district_heating_existing_building_efficiency_change': -1.0,  # Percent per year
     'district_heating_new_building_efficiency_change': -2.5,  # Percent per year
 
     'electricity_production_emissions_correction': 0,
-    'electricity_consumption_per_capita_adjustment': 0.0,  # Percent per year
+    'electricity_consumption_per_capita_adjustment': -2.0,  # Percent per year
 
     'solar_power_existing_buildings_percentage': 75,
     'solar_power_new_buildings_percentage': 90,
@@ -79,7 +81,7 @@ VARIABLE_DEFAULTS = {
     'geothermal_heat_pump_cop': 3.2,
     'geothermal_existing_building_renovation': 1.0,  # percent per year
     'geothermal_new_building_installation_share': 50,  # percent per year
-    'geothermal_borehole_depth': 500,  # meters
+    'geothermal_borehole_depth': 300,  # meters
 }
 
 

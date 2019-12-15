@@ -86,9 +86,9 @@ class StickyBar:
             traces.append(bar)
             range_max = self.needed_reductions
 
-        fig = dict(
+        fig = go.Figure(
             data=traces,
-            layout=dict(
+            layout=go.Layout(
                 xaxis=dict(
                     showgrid=False,
                     showline=False,

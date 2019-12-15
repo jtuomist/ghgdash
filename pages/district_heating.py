@@ -22,9 +22,25 @@ def generate_district_heating_forecast_graph(df):
         title='Kaukolämmön kulutuksen päästöt',
         smoothing=True,
         allow_nonconsecutive_years=True,
+        fill=True,
     )
     graph.add_series(
         df=df, column_name='District heat consumption emissions', trace_name='Päästöt',
+    )
+
+    return graph.get_figure()
+
+
+def generate_district_heating_emission_factor_graph(df):
+    graph = PredictionFigure(
+        sector_name='BuildingHeating',
+        unit_name='g/kWh',
+        title='Kaukolämmön päästökerroin',
+        smoothing=True,
+        allow_nonconsecutive_years=True,
+    )
+    graph.add_series(
+        df=df, column_name='Emission factor', trace_name='Päästökerroin',
     )
 
     return graph.get_figure()
@@ -127,8 +143,9 @@ def render_page():
     els = []
     els.append(dbc.Row([
         dbc.Col([
-            GraphCard(id='district-heating-production').render(),
-            html.Div(id='district-heating-table-container'),
+            dbc.Row(dbc.Col(GraphCard(id='district-heating-emission-factor').render())),
+            dbc.Row(dbc.Col(GraphCard(id='district-heating-production').render())),
+            dbc.Row(dbc.Col(html.Div(id='district-heating-table-container'))),
         ], md=8),
         dbc.Col([
             html.H5('Biopolttoaineen päästökerroin'),
@@ -161,6 +178,7 @@ page = Page(
 
 @page.callback(
     outputs=[
+        Output('district-heating-emission-factor-graph', 'figure'),
         Output('district-heating-production-graph', 'figure'),
         Output('district-heating-table-container', 'children'),
         Output('district-heating-production-source-graph', 'figure'),
@@ -187,6 +205,7 @@ def district_heating_callback(bio_emission_factor, *args):
     set_variable('district_heating_target_production_ratios', ratios)
 
     production_stats, production_source = calc_district_heating_unit_emissions_forecast()
+    ef_fig = generate_district_heating_emission_factor_graph(production_stats)
     fig = generate_district_heating_forecast_graph(production_stats)
     table = generate_district_heating_forecast_table(production_stats)
 
@@ -198,4 +217,4 @@ def district_heating_callback(bio_emission_factor, *args):
         current_page=page,
     )
 
-    return [fig, table, fuel_fig, sticky.render()]
+    return [ef_fig, fig, table, fuel_fig, sticky.render()]

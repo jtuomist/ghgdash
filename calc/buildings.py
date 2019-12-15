@@ -41,11 +41,11 @@ def generate_building_floor_area_forecast(variables):
     target_year = variables['target_year']
 
     df = prepare_historical_building_area_dataset()
-    df = df.loc[df.Yksikkö == 'Kerrosala']
     building_total = df.groupby(['Käyttötarkoitus', 'Vuosi']).sum()\
-        .unstack('Käyttötarkoitus')
+        .unstack('Käyttötarkoitus').dropna(axis=1, how='all')
+
     building_total.index = building_total.index.astype(int)
-    building_total.columns = building_total.columns.get_level_values(1)
+    building_total.columns = list(building_total.columns.get_level_values(1))
 
     pop_s = get_adjusted_population_forecast().Population
     # Replace negative population change with zero so that we don't
@@ -127,7 +127,7 @@ def generate_heat_use_per_net_area_forecast_new_buildings(variables):
     target_year = variables['target_year']
 
     heat_use_per_net_area = 95
-    start_year = 2017
+    start_year = 2018
     years = range(start_year, target_year + 1)
 
     vals = []

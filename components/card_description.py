@@ -27,6 +27,8 @@ class CardDescription:
         return dict(
             org_genitive=get_variable('org_genitive'),
             org_nominative=get_variable('org_nominative'),
+            municipality_genitive=get_variable('municipality_genitive'),
+            municipality_locative=get_variable('municipality_locative'),
             target_year=get_variable('target_year'),
         )
 

@@ -38,10 +38,10 @@ class GeothermalPage(Page):
                 marks={x: '%d %%' % x for x in range(0, 100 + 1, 10)},
             ),
         )
-        self.add_graph_card(id='geothermal-production')
+        self.add_graph_card(id='geothermal-production', link_to_page=('BuildingHeating', 'GeothermalHeating'))
         self.add_graph_card(id='emissions')
         self.add_graph_card(id='electricity-emission-factor')
-        self.add_graph_card(id='district-heat-emission-factor')
+        self.add_graph_card(id='district-heat-emission-factor', link_to_page=('BuildingHeating', 'DistrictHeat'))
 
     def get_content(self):
         grid = ConnectedCardGrid()
@@ -109,6 +109,8 @@ class GeothermalPage(Page):
 
         first_forecast = df[df.Forecast].iloc[0]
         last_forecast = df.iloc[-1]
+        last_hist_year = df[~df.Forecast].index.max()
+        last_forecast_year = df[df.Forecast].index.max()
 
         cd.set_values(
             existing_building_perc=self.get_variable('geothermal_existing_building_renovation'),
@@ -119,6 +121,8 @@ class GeothermalPage(Page):
             borehole_depth=self.get_variable('geothermal_borehole_depth'),
             new_building_perc=self.get_variable('geothermal_new_building_installation_share'),
             new_building_area=last_forecast.GeoBuildingNetAreaNew,
+            geothermal_production=last_forecast.GeoEnergyProduction,
+            perc_dh=last_forecast.GeoEnergyProduction
         )
         ecard.set_description(cd.render("""
         Kun olemassaolevasta rakennuskannasta remontoidaan {existing_building_perc:noround} %
@@ -139,6 +143,7 @@ class GeothermalPage(Page):
             unit_name='milj. k-m²',
             title='Uuden rakennuskannan maalämmöllä lämmitettävä kerrosala',
             smoothing=True,
+            y_max=10,
         )
         fig.add_series(
             df=df, column_name='GeoBuildingNetAreaNew', trace_name='Kerrosala',
@@ -155,11 +160,17 @@ class GeothermalPage(Page):
         )
         fig.add_series(
             df=df, column_name='GeoEnergyProductionExisting', trace_name='Vanha rakennuskanta',
+            luminance_change=-0.1,
         )
         fig.add_series(
             df=df, column_name='GeoEnergyProductionNew', trace_name='Uusi rakennuskanta',
+            luminance_change=0.1,
         )
         card.set_figure(fig)
+        card.set_description(cd.render("""
+            Vuonna {target_year} maalämpöpumpuilla tuotetaan {geothermal_production} GWh lämpöä.
+            Skenaariossa se käytetään korvaamaan kaukolämpöä.
+        """))
 
         # District heat
         dhdf = predict_district_heating_emissions()
@@ -174,6 +185,22 @@ class GeothermalPage(Page):
             df=dhdf, column_name='Emission factor', trace_name='Päästökerroin'
         )
         card.set_figure(fig)
+        last_dhdf_hist_year = dhdf[~dhdf.Forecast].index.max()
+        dhef_target = dhdf.loc[last_forecast_year, 'Emission factor']
+        dhef_hist = dhdf.loc[last_dhdf_hist_year, 'Emission factor']
+        cd.set_values(
+            dh_emission_factor_target=dhef_target,
+            dh_emission_factor_hist=dhef_hist,
+            perc_change=((dhef_target / dhef_hist) - 1) * 100
+        )
+        cd.set_variables(
+            last_dhdf_hist_year=last_dhdf_hist_year,
+        )
+        card.set_description(cd.render("""
+            Skenaariossa paikallisella maalämmöllä korvataan pelkästään kaukolämpöä.
+            Vuonna {target_year} kaukolämmöntuotannon päästökerroin on {dh_emission_factor_target}
+            g/km. Muutos vuoteen {last_dhdf_hist_year} on {perc_change} %.
+        """))
 
         # Electricity
         edf = predict_electricity_emission_factor()
@@ -188,6 +215,15 @@ class GeothermalPage(Page):
             df=edf, column_name='EmissionFactor', trace_name='Päästökerroin'
         )
         card.set_figure(fig)
+        cd.set_values(
+            heat_pump_el=last_forecast.ElectricityUse,
+            elef=edf.loc[last_forecast_year].EmissionFactor,
+        )
+        card.set_description(cd.render("""
+            Vuonna {target_year} maalämpöpumput käyttävät sähköä {heat_pump_el} GWh.
+            Sähkönkulutuksesta aiheutuvat päästöt määräytyvät sähkönhankinnan päästökertoimen
+            mukaan ({elef} g/kWh vuonna {target_year}).
+        """))
 
         card = self.get_card('emissions')
         fig = PredictionFigure(

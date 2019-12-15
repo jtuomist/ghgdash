@@ -1,14 +1,15 @@
 import dash_html_components as html
 from dash.dependencies import Input, Output
-import plotly.graph_objs as go
+import dash_bootstrap_components as dbc
 
 from variables import set_variable, get_variable
 from components.stickybar import StickyBar
-from components.graphs import make_layout, PredictionFigure
+from components.graphs import PredictionFigure
+from components.card_description import CardDescription
 from components.cards import GraphCard, ConnectedCardGrid
 from .base import Page
 
-from calc.cars import predict_cars_mileage, predict_cars_emissions
+from calc.cars import predict_cars_emissions
 from utils.colors import GHG_MAIN_SECTOR_COLORS
 
 CARS_GOAL = 119  # kt CO2e
@@ -45,11 +46,11 @@ def make_bottom_bar(df):
     last_emissions = df.iloc[-1].loc['Emissions']
 
     bar = StickyBar(
-        label="Henkilöautojen päästöt yhteensä",
+        label="Henkilöautojen päästöt",
         value=last_emissions,
         goal=CARS_GOAL,
         unit='kt (CO₂e.) / a',
-        current_page=page
+        current_page=page,
     )
     return bar.render()
 
@@ -127,9 +128,11 @@ page = Page(
     Input('cars-mileage-per-resident-slider', 'value'),
 ], outputs=[
     Output('cars-bev-percentage-graph', 'figure'),
+    Output('cars-bev-percentage-description', 'children'),
     # Output('cars-biofuel-percentage-graph', 'figure'),
     Output('cars-emission-factor-graph', 'figure'),
     Output('cars-mileage-per-resident-graph', 'figure'),
+    Output('cars-mileage-per-resident-description', 'children'),
     Output('cars-total-mileage-graph', 'figure'),
     Output('cars-emissions-graph', 'figure'),
     Output('cars-sticky-page-summary-container', 'children'),
@@ -167,8 +170,9 @@ def cars_callback(bev_percentage, mileage_adj):
     # Total mileage
     graph = PredictionFigure(
         sector_name='Transportation',
-        unit_name='Mkm',
-        title='Ajokilometrien kehitys',
+        unit_name='milj. km',
+        title='%s ajetut henkilöautokilometrit' % get_variable('municipality_locative'),
+        fill=True,
     )
     graph.add_series(
         df=df, column_name='Mileage', trace_name='Ajosuorite',
@@ -191,17 +195,41 @@ def cars_callback(bev_percentage, mileage_adj):
         sector_name='Transportation',
         unit_name='kt (CO₂e.)',
         title='Henkilöautoilun päästöt',
+        fill=True,
     )
     graph.add_series(
         df=df, column_name='Emissions', trace_name='Päästöt',
     )
     emissions_chart = graph.get_figure()
 
+    cd = CardDescription()
+    first_forecast = df[df.Forecast].iloc[0]
+    last_forecast = df[df.Forecast].iloc[-1]
+    last_history = df[~df.Forecast].iloc[-1]
+
+    cd.set_values(
+        bev_percentage=get_variable('cars_bev_percentage'),
+        bev_mileage=last_forecast.Mileage * last_forecast.electric,
+        per_resident_adjustment=get_variable('cars_mileage_per_resident_adjustment'),
+        target_population=last_forecast.Population,
+    )
+    bev_desc = cd.render("""
+        Skenaariossa polttomoottorihenkilöautot korvautuvat sähköautoilla siten,
+        että vuonna {target_year} {municipality_genitive} kaduilla ja teillä
+        ajetaan sähköautoilla {bev_percentage:noround} % kaikista ajokilometreistä
+        ({bev_mileage} milj. km).
+    """)
+    pr_desc = cd.render("""
+        Vuonna {target_year} {municipality_locative} asuu {target_population} ihmistä.
+        Skenaariossa ajokilometrit asukasta kohti muuttuvat vuoteen {target_year} mennessä
+        {per_resident_adjustment:noround} %.
+    """)
+
     sticky = make_bottom_bar(df)
 
     return [
-        bev_chart, emission_factor_chart,
-        per_resident_chart, mileage_chart,
+        bev_chart, dbc.Col(bev_desc), emission_factor_chart,
+        per_resident_chart, dbc.Col(pr_desc), mileage_chart,
         emissions_chart, sticky
     ]
 

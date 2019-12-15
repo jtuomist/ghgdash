@@ -57,4 +57,4 @@ def predict_district_heat_consumption(variables, datasets):
 
 
 if __name__ == '__main__':
-    predict_district_heat_consumption()
+    print(predict_district_heat_consumption())

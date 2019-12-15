@@ -256,9 +256,9 @@ def predict_district_heating_emissions():
     geodf = predict_geothermal_production()
     geodf = geodf[geodf.Forecast]
     pdf['GeothermalProduction'] = geodf['GeoEnergyProduction']
-    pdf['GeothermalProduction'].fillna(0)
-    pdf['NetHeatDemand'] = pdf['Heat demand'] - pdf['GeothermalProduction']
+    pdf['NetHeatDemand'] = pdf['Heat demand'] - pdf['GeothermalProduction'].fillna(0)
     pdf['NetEmissions'] = pdf['NetHeatDemand'] * pdf['Emission factor'] / 1000
+
     return pdf
 
 

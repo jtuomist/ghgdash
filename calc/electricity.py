@@ -81,6 +81,10 @@ def predict_electricity_consumption(variables):
     el_per_capita = (el_s / pop_df['Population']).dropna()
     el_per_capita *= 1000000  # GWh to kWh
 
+    last_year = el_per_capita.index.max()
+    per_capita_adj = variables['electricity_consumption_per_capita_adjustment']
+
+    """
     # Do a logarithmic regression
     s = np.log(el_per_capita)
 
@@ -95,16 +99,18 @@ def predict_electricity_consumption(variables):
         per_capita_log = last_val + res.slope * year_idx
         s.loc[year] = per_capita_log
 
+    for year_idx in range(last_year)
+
     s = np.exp(s)
-    s.name = 'ElectricityConsumptionPerCapita'
-
-    adj_perc = (100 + variables['electricity_consumption_per_capita_adjustment']) / 100
-    cur_adj = adj_perc
+    """
+    last_per = el_per_capita[last_year]
     for year in range(last_year + 1, target_year + 1):
-        s[year] *= cur_adj
-        cur_adj *= adj_perc
+        last_per *= 1 + (per_capita_adj / 100)
+        el_per_capita.loc[year] = last_per
 
-    df = pd.DataFrame(data=s)
+    el_per_capita.name = 'ElectricityConsumptionPerCapita'
+
+    df = pd.DataFrame(el_per_capita)
     df.name = 'Electricity consumption'
     df['ElectricityConsumption'] = el_s
     df['Population'] = pop_df['Population']

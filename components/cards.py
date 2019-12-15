@@ -67,22 +67,24 @@ class GraphCard(ConnectedCardBase):
     def render(self, is_top_row: bool = True) -> dbc.Card:
         graph = Graph(self.id, self.graph, self.slider)
         classes = self.get_classes(is_top_row)
-        card = dbc.Card(
-            dbc.CardBody(children=[
-                html.Div(graph.render(), className="slider-card__content"),
-                dbc.Row(id=self.id + '-description'),
-                self.extra_content,
-            ]), className=' '.join(classes),
-        )
+
+        graph_el = html.Div(graph.render(), className="slider-card__content")
         if self.link_to_page:
             if isinstance(self.link_to_page, tuple):
                 from pages.routing import get_page_for_emission_sector
                 page = get_page_for_emission_sector(*self.link_to_page)
             else:
                 page = self.link_to_page
-            return dcc.Link(children=card, href=page.path)
-        else:
-            return card
+            graph_el = dcc.Link(children=graph_el, href=page.path)
+
+        card = dbc.Card(
+            dbc.CardBody(children=[
+                graph_el,
+                dbc.Row(id=self.id + '-description'),
+                self.extra_content,
+            ]), className=' '.join(classes),
+        )
+        return card
 
     def set_figure(self, figure):
         if isinstance(figure, PredictionFigure):

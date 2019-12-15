@@ -11,6 +11,7 @@ from variables import set_variable, get_variable
 from components.stickybar import StickyBar
 from components.graphs import PredictionFigure
 from components.cards import GraphCard, ConnectedCardGrid
+from components.card_description import CardDescription
 from .base import Page
 
 
@@ -71,7 +72,7 @@ def draw_district_heat_consumption_emissions(df):
         smoothing=True, allow_nonconsecutive_years=True
     )
     graph.add_series(
-        df=df, column_name='District heat consumption emissions', trace_name='Päästöt'
+        df=df, column_name='NetEmissions', trace_name='Päästöt'
     )
     return graph.get_figure()
 
@@ -95,7 +96,7 @@ def make_unit_emissions_card(df):
 
 
 def make_bottom_bar(df):
-    s = df['District heat consumption emissions']
+    s = df['NetEmissions']
     last_emissions = s.iloc[-1]
     target_emissions = DISTRICT_HEATING_GOAL
 
@@ -178,8 +179,11 @@ page = Page(
     Input('district-heating-new-building-unit-heat-factor-slider', 'value'),
 ], outputs=[
     Output('district-heating-existing-building-unit-heat-factor-graph', 'figure'),
+    Output('district-heating-existing-building-unit-heat-factor-description', 'children'),
     Output('district-heating-new-building-unit-heat-factor-graph', 'figure'),
+    Output('district-heating-new-building-unit-heat-factor-description', 'children'),
     Output('district-heating-geothermal-production-graph', 'figure'),
+    Output('district-heating-geothermal-production-description', 'children'),
     Output('district-heating-consumption-graph', 'figure'),
     Output('district-heating-unit-emissions-card', 'children'),
     Output('district-heating-consumption-emissions-graph', 'figure'),
@@ -190,9 +194,6 @@ def district_heating_consumption_callback(existing_building_perc, new_building_p
     set_variable('district_heating_new_building_efficiency_change', new_building_perc / 10)
 
     df = predict_district_heat_consumption()
-    fig1 = draw_existing_building_unit_heat_factor_graph(df)
-    fig2 = draw_new_building_unit_heat_factor_graph(df)
-
     geo_df = predict_geothermal_production()
     geo_df = geo_df[geo_df.Forecast]
     df['GeoEnergyProductionExisting'] = geo_df['GeoEnergyProductionExisting']
@@ -200,6 +201,41 @@ def district_heating_consumption_callback(existing_building_perc, new_building_p
 
     df['ExistingBuildingHeatUse'] -= df['GeoEnergyProductionExisting'].fillna(0)
     df['NewBuildingHeatUse'] -= df['GeoEnergyProductionNew'].fillna(0)
+
+    first_forecast = df[df.Forecast].iloc[0]
+    last_forecast = df[df.Forecast].iloc[-1]
+    last_history = df[~df.Forecast].iloc[-1]
+
+    cd = CardDescription()
+    org_owned = get_variable('building_area_owned_by_org') / 100
+    geo_production = last_forecast.GeoEnergyProductionExisting + last_forecast.GeoEnergyProductionNew
+    cd.set_values(
+        existing_renovation=get_variable('district_heating_existing_building_efficiency_change'),
+        new_improvement=get_variable('district_heating_new_building_efficiency_change'),
+        existing_next_year_reduction=(1 - (first_forecast.ExistingBuildingHeatUse - last_history.ExistingBuildingHeatUse)) * org_owned,
+        new_area=last_forecast.NewBuildingNetArea,
+        existing_area=last_forecast.ExistingBuildingNetArea,
+        geo_production=geo_production,
+        geo_percentage=(geo_production / last_forecast.TotalHeatConsumption) * 100,
+    )
+    existing_desc = cd.render("""
+        Skenaarion mukaan nykyistä rakennuskantaa remontoidaan siten, että rakennuksien
+        energiatehokkuus paranee {existing_renovation:noround} % vuodessa. Ensi vuonna {org_genitive}
+        omistamien rakennuksien lämmönkulutuksen pitää pudota {existing_next_year_reduction} GWh.
+    """)
+    new_desc = cd.render("""
+        Uuden rakennuskannan energiatehokkuus paranee skenaariossa {new_improvement:noround} % vuodessa.
+        Vuonna {target_year} nykyistä rakennuskantaa on {existing_area} milj. kem² ja uutta rakennuskantaa
+        {new_area} milj. kem².
+    """)
+    geo_desc = cd.render("""
+        Vanhassa ja uudessa rakennuskannassa korvataan kaukolämpöä paikallisesti tuotetulla
+        maalämmöllä siten, että vuonna {target_year} kaukolämpöä korvataan {geo_production} GWh
+        ({geo_percentage} % sen vuoden kaukolämmönkulutuksesta).
+    """)
+
+    fig1 = draw_existing_building_unit_heat_factor_graph(df)
+    fig2 = draw_new_building_unit_heat_factor_graph(df)
 
     geo_fig = PredictionFigure(
         sector_name='BuildingHeating',
@@ -218,4 +254,9 @@ def district_heating_consumption_callback(existing_building_perc, new_building_p
     fig4 = draw_district_heat_consumption_emissions(df)
     sticky = make_bottom_bar(df)
 
-    return [fig1, fig2, geo_fig.get_figure(), fig3, unit_emissions_card, fig4, sticky]
+    return [
+        fig1, dbc.Col(existing_desc, style=dict(minHeight='8rem')),
+        fig2, dbc.Col(new_desc, style=dict(minHeight='8rem')),
+        geo_fig.get_figure(), dbc.Col(geo_desc, style=dict(minHeight='8rem')),
+        fig3, unit_emissions_card, fig4, sticky
+    ]
