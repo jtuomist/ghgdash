@@ -22,7 +22,7 @@ def draw_existing_building_unit_heat_factor_graph(df):
     graph = PredictionFigure(
         sector_name='BuildingHeating',
         unit_name='kWh/k-m²',
-        title='Olemassaolevan rakennuskannan ominaislämmönkulutus',
+        title='Vanhan rakennuskannan ominaislämmönkulutus',
     )
     graph.add_series(
         df=df, column_name='ExistingBuildingHeatUsePerNetArea', trace_name='Ominaislämmönkulutus',
