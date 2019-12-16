@@ -102,7 +102,7 @@ def electricity_consumption_callback(value):
         sector_name='ElectricityConsumption', title='Kulutussähkön päästöt',
         unit_name='kt', smoothing=True, fill=True,
     )
-    graph.add_series(df=df, trace_name='Päästöt', column_name='Emissions')
+    graph.add_series(df=df, trace_name='Päästöt', column_name='NetEmissions')
     emission_fig = graph.get_figure()
 
     graph = PredictionFigure(
@@ -120,9 +120,10 @@ def electricity_consumption_callback(value):
     cd = CardDescription()
     cd.set_values(
         per_resident_adj=get_variable('electricity_consumption_per_capita_adjustment'),
-        per_resident_change=((last_forecast.ElectricityConsumption / last_history.ElectricityConsumption) - 1) * 100,
+        per_resident_change=((last_forecast.ElectricityConsumptionPerCapita / last_history.ElectricityConsumptionPerCapita) - 1) * 100,
         last_history_year=last_history.name,
         solar_production_target=last_forecast.SolarProduction,
+        solar_production_perc=(last_forecast.SolarProduction * 100) / last_forecast.ElectricityConsumption,
         solar_production_hist=last_history.SolarProduction,
     )
     per_resident_desc = cd.render("""
@@ -131,7 +132,8 @@ def electricity_consumption_callback(value):
     """)
     solar_desc = cd.render("""
         Vuonna {target_year} {municipality_locative} sijaitsevilla aurinkopaneeleilla
-        tuotetaan {solar_production_target} GWh vuodessa.
+        tuotetaan {solar_production_target} GWh, joka on {solar_production_perc} %
+        kaikesta vuoden {target_year} kulutussähköstä.
     """)
 
     bar = StickyBar(

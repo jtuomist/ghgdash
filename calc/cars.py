@@ -193,7 +193,8 @@ def predict_cars_emissions(datasets, variables):
         for road in ('Urban', 'Highways'):
             df.loc[year, road + 'Emissions'] = co2e['Emissions'][road] / 1000000  # -> kt
 
-    df['Emissions'] = df['HighwaysEmissions'] + df['UrbanEmissions']
+    df['Emissions'] = (df['HighwaysEmissions'] + df['UrbanEmissions'])   # magic
+    df.loc[df.Forecast, 'Emissions'] *= 0.97  # magic
     df['EmissionFactor'] = df['Emissions'] / (df['Urban'] + df['Highways']) * 1000000000  # g/km
 
     return df

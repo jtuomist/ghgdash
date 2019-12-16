@@ -74,7 +74,7 @@ VARIABLE_DEFAULTS = {
     'solar_power_new_buildings_percentage': 90,
     'yearly_pv_energy_production_kwh_wp': 0.9,         # kWh/Wp in a year
 
-    'cars_bev_percentage': 80,
+    'cars_bev_percentage': 30,
     'cars_mileage_per_resident_adjustment': 0,
     'vehicle_fuel_bio_percentage': 30,
 
