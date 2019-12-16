@@ -69,7 +69,8 @@ def draw_district_heat_consumption_emissions(df):
     graph = PredictionFigure(
         sector_name='BuildingHeating',
         unit_name='kt', title='Kaukolämmön kulutuksen päästöt',
-        smoothing=True, allow_nonconsecutive_years=True
+        smoothing=True, allow_nonconsecutive_years=True,
+        fill=True
     )
     graph.add_series(
         df=df, column_name='NetEmissions', trace_name='Päästöt'
