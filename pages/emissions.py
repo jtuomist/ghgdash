@@ -76,16 +76,19 @@ def render_page():
     ref_year = get_variable('ghg_reductions_reference_year')
     perc_off = get_variable('ghg_reductions_percentage_in_target_year')
 
+    last_hist_year = edf.loc[~forecast].index.max()
+    last_hist = edf.loc[last_hist_year].sum()
+    end_emissions = edf.loc[target_year].sum()
     ref_emissions = edf.loc[ref_year].sum()
     target_emissions = ref_emissions * (1 - perc_off / 100)
 
     target_year_emissions = edf.loc[target_year].sum()
     sticky = StickyBar(
-        label='Päästöt yhteensä',
-        goal=target_emissions,
-        value=target_year_emissions,
+        label='Päästövähennykset yhteensä',
+        goal=last_hist - target_emissions,
+        value=last_hist - end_emissions,
         unit='kt',
-        below_goal_good=True,
+        below_goal_good=False,
     )
 
     card = GraphCard(id='emissions-total', graph=dict(figure=graph.get_figure()))
