@@ -1,7 +1,6 @@
-import math
 import pandas as pd
-import scipy.stats
 from . import calcfunc
+from .bass import generate_bass_diffusion
 from .population import get_adjusted_population_forecast
 from .electricity import predict_electricity_emission_factor
 
@@ -58,77 +57,106 @@ def predict_cars_mileage(variables):
     return df
 
 
-def bass_diffuse(t, p, q):
-    e1 = math.e ** (-(p + q) * t)
-    res = ((p + q) ** 2) / p
-    res *= e1 / ((1 + q / p * e1) ** 2)
-    return res
-
-
-def calculate_bev_share(m, start_share, n_years):
-    bev_share = start_share
-    for t in range(n_years):
-        bev_share *= 1 + bass_diffuse(t, 0.2, 0.2) * m
-    return bev_share
-
-
-def estimate_mileage_ratios(df, start_year, year, bev_target_share, target_year):
-    df = df.copy()
+def estimate_mileage_ratios(df, last_hist_year, target_year, bev_target_share):
     # Assume BEV share is increasing according to the Bass diffusion model
     # and that increase in share comes equally out of petrol and diesel engines
     # starting from the most polluting engine classes.
-    bev = df.loc['electric']
-    bev_share_start = bev_share = bev['EURO 6']
 
-    def estimate_bass_m(m):
-        return abs(bev_target_share - calculate_bev_share(m, bev_share_start, target_year - start_year))
-    m = scipy.optimize.minimize_scalar(estimate_bass_m).x
+    last_bev_share = df.loc['electric'].sum().sum()
+    bev_series = generate_bass_diffusion(
+        last_hist_year, target_year, last_bev_share, bev_target_share,
+        p=0.03, q=0.6
+    )
 
-    bev_share = bev['EURO 6'] = calculate_bev_share(m, bev_share_start, year - start_year)
+    diesel = df.loc['diesel'].copy()
+    gas = df.loc['gasoline'].copy()
+    last_diesel_share = diesel.sum().sum()
+    last_gas_share = gas.sum().sum()
+    diesel_per_gas = last_diesel_share / (last_gas_share + last_diesel_share)
 
-    share_change = bev_share - bev_share_start
-    sums = df.sum(axis='columns')
-    diesel_share = sums['diesel'] / (sums['diesel'] + sums['gasoline'])
-    share_left = dict(diesel=share_change * diesel_share)
-    share_left['gasoline'] = share_change - share_left['diesel']
+    out = []
 
-    for i in range(0, 6 + 1):
-        key = 'EURO %d' % i
-        for eng in ('diesel', 'gasoline'):
-            if not share_left[eng]:
-                continue
+    for year in range(last_hist_year + 1, target_year + 1):
+        bev_share = bev_series.loc[year]
+        bev_share_change = bev_share - last_bev_share
 
-            val = df.loc[eng][key]
-            decrease = min(val, share_left[eng])
-            df.loc[eng][key] -= decrease
-            share_left[eng] -= decrease
+        share_left = dict(diesel=bev_share_change * diesel_per_gas)
+        share_left['gasoline'] = bev_share_change - share_left['diesel']
+
+        shares_per_engine = dict(diesel=diesel, gasoline=gas)
+
+        for i in range(0, 6 + 1):
+            key = 'EURO %d' % i
+            for eng in ('diesel', 'gasoline'):
+                if not share_left[eng]:
+                    continue
+
+                val = shares_per_engine[eng][key]
+                decrease = min(val, share_left[eng])
+                shares_per_engine[eng][key] -= decrease
+                share_left[eng] -= decrease
+
+        shares_per_engine['electric'] = {'EURO 6': bev_share}
+        for eng in ('diesel', 'gasoline', 'electric'):
+            z = dict(shares_per_engine[eng])
+            z['Year'] = year
+            z['Engine'] = eng
+            out.append(z)
+
+        last_bev_share = bev_share
+
+    df['Year'] = last_hist_year
+    df = df.reset_index().append(out)
+    df = df.fillna(0).set_index(['Engine', 'Year'])
+    df = df.unstack('Engine')
+    df = df.fillna(method='ffill')
+    df = df.stack('Engine')
 
     return df
 
 
 def estimate_bev_unit_emissions(unit_emissions, kwh_emissions):
-    energy_consumption = (
-        ('Highways', 0.2),   # kWh/km
-        ('Urban', 0.17)
-    )
-    rows = []
-    for road_type, kwh in energy_consumption:
-        rows.append({
-            "Engine": 'electric',
-            "Road": road_type,
-            "Car year": 2018,
-            "CO2e": kwh * kwh_emissions,
-            "Class": "EURO 6"
-        })
-    return unit_emissions.copy().append(pd.DataFrame(rows), ignore_index=True, sort=True)
+    energy_consumption = dict(
+        Highways=0.2,
+        Urban=0.17
+    )  # kWh/km
+
+    df = pd.DataFrame(kwh_emissions)
+    df['Highways'] = df['EmissionFactor'] * energy_consumption['Highways']
+    df['Urban'] = df['EmissionFactor'] * energy_consumption['Urban']
+    df.index.name = 'Year'
+    df = df.drop(columns='EmissionFactor').reset_index().melt(id_vars='Year')
+    df = df.rename(columns=dict(variable='Road', value='EURO 6'))
+    df['Engine'] = 'electric'
+    df = df.set_index(['Road', 'Engine'])
+
+    df = unit_emissions.append(df, sort=True)
+    df = df.reset_index().set_index(['Year', 'Road', 'Engine'])
+    df = df.unstack(['Road', 'Engine']).fillna(method='pad')
+
+    return df
 
 
 def calculate_co2e_per_engine_type(mileage, ratios, unit_emissions):
-    roads = ('Urban', 'Highways')
-    df = pd.concat([ratios * mileage[road] * 1000000 for road in roads], keys=roads, names=['Road'])
-    out = df * unit_emissions
-    out /= 1000000000  # convert to t (CO2e)
-    return out
+    df = ratios.unstack('Engine')
+    df_h = df.multiply(mileage['Highways'], axis='index')
+    df_r = df.multiply(mileage['Urban'], axis='index')
+    df_h['Road'] = 'Highways'
+    df_r['Road'] = 'Urban'
+
+    df = df_h.append(df_r).reset_index().set_index(['Year', 'Road']).unstack('Road')
+    df.columns = df.columns.reorder_levels([0, 2, 1])
+
+    df = df * unit_emissions
+    df = df.stack('Road')
+
+    df = (df.sum(axis=1) / 1000000000).unstack('Road')
+    last_hist_year = mileage[~mileage.Forecast].index.max()
+    df = df.loc[df.index > last_hist_year]
+    mileage.loc[mileage.index > last_hist_year, 'HighwaysEmissions'] = df['Highways']
+    mileage.loc[mileage.index > last_hist_year, 'UrbanEmissions'] = df['Urban']
+
+    return mileage
 
 
 @calcfunc(
@@ -165,33 +193,22 @@ def predict_cars_emissions(datasets, variables):
     elec_df = predict_electricity_emission_factor()
     share_df = mileage_share_per_engine_type.copy().xs('Cars')
 
-    start_year = df[~df.Forecast].index.max()
+    last_hist_year = df[~df.Forecast].index.max()
 
-    # Prepare unit emissions dataset
-    for year in range(start_year, target_year + 1):
-        # Estimate mileage ratio shares between engine types
-        share = estimate_mileage_ratios(share_df, start_year, year, bev_percentage / 100.0, target_year)
-        shares = share.sum(axis='columns')
-        for col in ['electric', 'gasoline', 'diesel']:
-            df.loc[year, col] = shares[col]
+    # Estimate mileage ratio shares between engine types
+    share = estimate_mileage_ratios(share_df, last_hist_year, target_year, bev_percentage / 100.0)
 
-        # Do not calculate emissions for the year we have actual data on
-        if year == start_year:
-            continue
+    # Estimate emissions per km per engine type
+    unit_df = car_unit_emissions.reset_index()
+    unit_df = unit_df.groupby(['Road', 'Engine', 'Class']).mean()['CO2e'].unstack('Class')
+    unit_df['Year'] = last_hist_year
+    elec_df = elec_df.loc[elec_df.index >= last_hist_year]
+    unit_df = estimate_bev_unit_emissions(unit_df, elec_df['EmissionFactor'])
 
-        # Estimate emissions per km per engine type
-        unit_df = car_unit_emissions.copy().reset_index()
-        unit_df = estimate_bev_unit_emissions(unit_df, elec_df.loc[year]['EmissionFactor'])
-        unit_df.set_index(['Engine', 'Road'], inplace=True)
-        unit_df = unit_df.groupby(['Road', 'Engine', 'Class']).mean()['CO2e'].unstack('Class')
-
-        # Calculate emissions for the year
-        co2e = calculate_co2e_per_engine_type(df.loc[year], share, unit_df)
-        co2e = co2e.sum(axis='columns').reset_index().groupby('Road').sum()
-        co2e.columns = ['Emissions']
-        co2e = co2e.to_dict()
-        for road in ('Urban', 'Highways'):
-            df.loc[year, road + 'Emissions'] = co2e['Emissions'][road] / 1000000  # -> kt
+    df = calculate_co2e_per_engine_type(df, share, unit_df)
+    engine_shares = share.sum(axis=1).unstack('Engine')
+    for engine_type in ('gasoline', 'diesel', 'electric'):
+        df[engine_type] = engine_shares[engine_type]
 
     df['Emissions'] = (df['HighwaysEmissions'] + df['UrbanEmissions'])   # magic
     df.loc[df.Forecast, 'Emissions'] *= 0.97  # magic
