@@ -3,9 +3,12 @@ import dash_html_components as html
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import plotly.graph_objs as go
+import numpy as np
+import pandas as pd
 
 from variables import get_variable
-from calc.emissions import predict_emissions, get_sector_by_path
+from calc.emissions import predict_emissions, predict_emission_reductions, get_sector_by_path
+from utils.colors import generate_color_scale
 
 
 @dataclass
@@ -35,39 +38,127 @@ class StickyBar:
         self.scenario_emissions = df.loc[self.target_year]
         self.scenario_reductions = last_emissions - self.scenario_emissions
 
-    def _render_emissions_bar(self):
-        df = self.emissions_df
-
-        df = df.sum(axis=1, level=0)
-        start_s = df.loc[self.last_historical_year]
-        target_s = df.iloc[-1]
-        reductions = (start_s - target_s).sort_values(ascending=False)
-        traces = []
+    def _render_subsectors(self, df, sector_name, cur_x):
         page = self.current_page
-        for sector_name, emissions in reductions.iteritems():
-            sector_metadata = get_sector_by_path(sector_name)
-            if page is not None and page.emission_sector is not None and \
-                    page.emission_sector[0] == sector_name:
-                active = True
-            else:
-                active = False
+        if page is not None and page.emission_sector is not None and \
+                page.emission_sector[0] == sector_name:
+            active_sector = True
+            sector_path = page.emission_sector
+        else:
+            sector_path = (sector_name,)
+            active_sector = False
 
+        path = list(sector_path)
+        primary_sector = path.pop(0)
+        primary_sector_metadata = get_sector_by_path(primary_sector)
+        df = df[primary_sector]
+
+        last_year = df.iloc[-1]
+        if not isinstance(last_year, pd.Series):
+            last_year = pd.Series([last_year], index=(sector_name,))
+        last_year = last_year.dropna(axis=0)
+        emissions_left = last_year.dropna(axis=0).sum()
+
+        sector_metadata = primary_sector_metadata
+        for p in path:
+            try:
+                last_year = last_year[p]
+                sector_metadata = primary_sector_metadata['subsectors'][p]
+            except KeyError:
+                # The sector might be missing because it has emissions
+                # increases instead of decreases.
+                last_year = pd.Series()
+
+        if not active_sector:
+            last_year = pd.Series()
+        else:
+            print(last_year)
+
+        colors = generate_color_scale(primary_sector_metadata['color'], len(last_year.index) + 1)
+        colors.remove(primary_sector_metadata['color'])
+        colors.reverse()
+
+        traces = []
+        active_emissions = 0
+        for sector_name, emissions in last_year.items():
+            if isinstance(sector_name, tuple):
+                sector_name = sector_name[0]
+            if not emissions or np.isnan(emissions):
+                continue
+            if not sector_name and len(last_year) == 1:
+                break
+            if sector_name:
+                ss_metadata = sector_metadata['subsectors'][sector_name]
+            else:
+                ss_metadata = sector_metadata
+
+            color = colors.pop(0)
+            name = ss_metadata.get('improvement_name') or ss_metadata['name']
             bar = dict(
                 type='bar',
                 x=[emissions],
-                name=sector_metadata['name'],
+                name=name,
                 orientation='h',
                 hovertemplate='%{x: .0f} kt',
                 marker=dict(
-                    color=sector_metadata['color']
+                    color=color
                 )
             )
-            if active:
-                bar['marker'].update(dict(
-                    line_color='#888',
-                    line_width=4,
-                ))
             traces.append(bar)
+            emissions_left -= emissions
+            active_emissions += emissions
+
+        name = primary_sector_metadata['name']
+        if traces:
+            name += ' (muu)'
+        else:
+            active_emissions = emissions_left
+
+        traces.append(dict(
+            type='bar',
+            x=[emissions_left],
+            name=name,
+            orientation='h',
+            hovertemplate='%{x: .0f} kt',
+            marker=dict(
+                color=primary_sector_metadata['color'],
+                line_width=0,
+            )
+        ))
+
+        shapes = []
+        if active_sector:
+            shapes.append(dict(
+                type='rect',
+                x0=cur_x,
+                x1=cur_x + active_emissions,
+                y0=0,
+                y1=1,
+                yref='paper',
+                line=dict(
+                    color='#888',
+                    width=4,
+                )
+            ))
+
+        return traces, shapes
+
+    def _render_emissions_bar(self):
+        df = predict_emission_reductions()
+        last_year = df.iloc[-1]
+        # For now, drop sectors that have emission increases...
+        df = df.drop(columns=last_year[last_year < 0].index)
+        main_sectors = df.iloc[-1].sum(level=0).sort_values(ascending=False)
+
+        traces = []
+        shapes = []
+        cur_x = 0
+        for sector_name, emissions in main_sectors.items():
+            new_traces, new_shapes = self._render_subsectors(df, sector_name, cur_x)
+            traces += new_traces
+            shapes += new_shapes
+            for trace in new_traces:
+                cur_x += trace['x'][0]
 
         if self.scenario_reductions >= self.needed_reductions:
             range_max = self.scenario_reductions
@@ -89,12 +180,13 @@ class StickyBar:
         fig = go.Figure(
             data=traces,
             layout=go.Layout(
+                shapes=shapes,
                 xaxis=dict(
                     showgrid=False,
                     showline=False,
                     showticklabels=False,
                     zeroline=False,
-                    domain=[0.15, 1],
+                    # domain=[0.15, 1],
                     autorange=False,
                     range=[0, range_max],
                 ),
@@ -105,10 +197,11 @@ class StickyBar:
                     zeroline=False,
                 ),
                 margin=dict(
-                    l=0,
-                    r=0,
-                    b=0,
-                    t=0
+                    l=0,  # noqa
+                    r=2,
+                    b=2,
+                    t=2,
+                    pad=0,
                 ),
                 barmode='stack',
                 paper_bgcolor='rgba(0,0,0,0)',
@@ -118,8 +211,8 @@ class StickyBar:
                 autosize=True,
                 clickmode='none',
                 dragmode=False,
-                transition={'duration': 500},
-            )
+                #   transition={'duration': 500},
+            ),
         )
 
         graph = dcc.Graph(
@@ -186,3 +279,12 @@ class StickyBar:
         return dbc.Alert([
             dbc.Row([pötkylä, summary, emissions_summary])
         ], className="page-summary fixed-bottom")
+
+
+if __name__ == '__main__':
+    # from calc.geothermal import get_historical_production
+    # get_historical_production()
+    from pages.routing import get_page_for_emission_sector
+    page = get_page_for_emission_sector('BuildingHeating', 'DistrictHeat')
+    assert page is not None
+    StickyBar(current_page=page).render()

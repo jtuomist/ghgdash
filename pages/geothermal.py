@@ -157,6 +157,7 @@ class GeothermalPage(Page):
             title='Maalämpötuotanto',
             smoothing=True,
             fill=True,
+            stacked=True,
         )
         fig.add_series(
             df=df, column_name='GeoEnergyProductionExisting', trace_name='Vanha rakennuskanta',

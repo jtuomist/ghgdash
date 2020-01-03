@@ -6,6 +6,8 @@ from .geothermal import predict_geothermal_production
 from .cars import predict_cars_emissions
 from . import calcfunc
 from utils.colors import GHG_MAIN_SECTOR_COLORS
+from utils.data import get_contributions_from_multipliers
+
 
 SECTORS = {
     'BuildingHeating': dict(
@@ -14,7 +16,17 @@ SECTORS = {
             'DistrictHeat': dict(
                 name='Kaukolämpö',
                 subsectors={
-                    'DistrictHeatProduction': dict(name='Kaukolämmön tuotanto'),
+                    'DistrictHeatProduction': dict(
+                        name='Kaukolämmön tuotanto',
+                        improvement_name='Kaukolämmön tuotannon puhdistuminen',
+                    ),
+                    'DistrictHeatDemand': dict(
+                        name='Kaukolämmön kulutus',
+                        improvement_name='Rakennusten energiatehokkuuden parantuminen',
+                    ),
+                    'DistrictHeatToGeothermalProduction': dict(
+                        name='Kaukolämmön korvaaminen maalämmöllä'
+                    ),
                 }
             ),
             'OilHeating': dict(name='Öljylämmitys'),
@@ -174,7 +186,52 @@ def predict_emissions(variables, datasets):
     return df
 
 
+def calculate_district_heating_reductions(rdf, df):
+    perc = get_contributions_from_multipliers(df, 'NetHeatDemand', 'Emission factor')
+    out = pd.DataFrame(index=rdf.index)
+    hd = out['DistrictHeatDemand'] = rdf * perc.NetHeatDemand
+    out['DistrictHeatProduction'] = rdf * perc['Emission factor']
+    out['DistrictHeatToGeothermalProduction'] = (df['GeothermalProduction'] / df['Heat demand']) * hd
+    out['DistrictHeatDemand'] -= out['DistrictHeatToGeothermalProduction']
+    return out
+
+
+@calcfunc(
+    funcs=[
+        predict_emissions,
+        predict_district_heating_emissions,
+    ],
+)
+def predict_emission_reductions():
+    df = predict_emissions()
+    last_hist_year = df.loc[~df.Forecast].index.max()
+
+    df = df.loc[df.index >= last_hist_year].drop(columns='Forecast', level=0)
+    df = -(df - df.iloc[0])
+    df = df.iloc[1:]
+
+    new_cols = [(*x, '') for x in df.columns.to_flat_index()]
+    df.columns = pd.MultiIndex.from_tuples(new_cols, names=['Sector1', 'Sector2', 'Sector3'])
+
+    pdf = predict_district_heating_emissions()
+    shares = calculate_district_heating_reductions(df['BuildingHeating']['DistrictHeat'], pdf)
+    col_names = [('BuildingHeating', 'DistrictHeat', str(x)) for x in shares.columns]
+    df[col_names] = shares
+    df = df.drop(columns=('BuildingHeating', 'DistrictHeat', ''))
+
+    return df
+
+
+@calcfunc(
+    funcs=[
+        predict_emissions,
+    ]
+)
+def predict_building_heating_emission_reductions():
+    pass
+
+
 if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
-    df = predict_emissions()
-    print(df)
+    df = predict_emission_reductions()
+    print(df.columns)

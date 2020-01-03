@@ -23,7 +23,8 @@ ENGINE_TYPES = {
 
 
 def draw_bev_chart(df):
-    df = df.dropna()
+    engines = {'electric', 'gasoline', 'diesel'}
+    df = df.dropna()[[*engines, 'Forecast']].copy()
     graph = PredictionFigure(
         sector_name='Transportation',
         unit_name='%',
@@ -32,7 +33,8 @@ def draw_bev_chart(df):
         legend_x=0.6,
         y_max=100,
     )
-    for col in {'electric', 'gasoline', 'diesel'}:
+
+    for col in engines:
         et = ENGINE_TYPES[col]
         df[col] *= 100
         graph.add_series(
