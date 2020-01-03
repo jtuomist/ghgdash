@@ -1,4 +1,5 @@
 import importlib
+import hashlib
 import os
 import json
 from functools import wraps
@@ -47,17 +48,21 @@ def _get_func_hash_data(func, seen_funcs):
     return dict(variables=all_variables, funcs=all_funcs)
 
 
+def _hash_funcs(funcs):
+    m = hashlib.md5()
+    for f in funcs:
+        m.update(f.__code__.co_code)
+    return m.hexdigest()
+
+
 def _calculate_cache_key(func, hash_data):
     funcs = hash_data['funcs']
     variables = hash_data['variables']
     var_data = json.dumps({x: get_variable(x) for x in variables}, sort_keys=True)
 
-    func_hash = id(func)
-    for child_func in funcs:
-        func_hash ^= id(child_func) << 1
-
+    func_hash = _hash_funcs(funcs)
     func_name = '.'.join((func.__module__, func.__name__))
-    return '%s:%x:%x' % (func_name, hash(var_data), func_hash)
+    return '%s:%s:%s' % (func_name, hashlib.md5(var_data.encode()).hexdigest(), func_hash)
 
 
 def calcfunc(variables=None, datasets=None, funcs=None):
