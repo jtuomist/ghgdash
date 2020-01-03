@@ -5,10 +5,11 @@ from numba import jit
 
 
 @jit(nopython=True)
-def _bass_diffuse(t, p, q):
+def _bass_diffuse(t, m, p, q):
     e1 = math.e ** (-(p + q) * t)
     res = ((p + q) ** 2) / p
     res *= e1 / ((1 + q / p * e1) ** 2)
+    res *= m
     return res
 
 
@@ -17,7 +18,7 @@ def _generate_bass_series(t, y0, m, p, q):
     y = y0
     vals = []
     for t in range(0, t):
-        f = _bass_diffuse(t, p, q) * m
+        f = _bass_diffuse(t, m, p, q)
         y *= 1 + f
         vals.append(y)
     return vals
