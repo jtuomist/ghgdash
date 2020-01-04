@@ -24,6 +24,9 @@ def get_contributions_from_multipliers(df, mult1_column, mult2_column):
     product2 = ref_product - fdf[mult2_column] * ref[mult1_column]
     product = ref_product - fdf[mult1_column] * fdf[mult2_column]
 
+    product1 = product1.clip(lower=0)
+    product2 = product2.clip(lower=0)
+
     sum_product = product1 + product2
     product1 = (product1 / sum_product)
 
