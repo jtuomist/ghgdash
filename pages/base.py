@@ -162,6 +162,12 @@ class Page:
             html.H2(self.name), content
         ])
 
+        inputs, _ = self.get_callback_info()
+        if not inputs and hasattr(self, 'get_summary_vars'):
+            summary_el = self._make_summary_bar()
+        else:
+            summary_el = None
+
         ret = html.Div([
             # represents the URL bar, doesn't render anything
             self._make_navbar(),
@@ -169,7 +175,7 @@ class Page:
                 dbc.Row([
                     dbc.Col(id=self.make_id('left-nav'), md=2, children=self._make_emission_nav()),
                     dbc.Col(md=10, children=page_content),
-                    html.Div(id=self.make_id('summary-bar')),
+                    html.Div(id=self.make_id('summary-bar'), children=summary_el),
                 ]),
                 className="app-content",
                 fluid=True

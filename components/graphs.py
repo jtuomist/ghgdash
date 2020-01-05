@@ -7,7 +7,7 @@ import dash_core_components as dcc
 
 from utils import deepupdate
 from utils.data import find_consecutive_start
-from utils.colors import GHG_MAIN_SECTOR_COLORS
+from utils.colors import GHG_MAIN_SECTOR_COLORS, generate_color_scale
 
 
 def make_layout(**kwargs):
@@ -69,7 +69,8 @@ class PredictionFigureSeries:
     column_name: str = None
     historical_color: str = None
     forecast_color: str = None
-    luminance_change: float = None
+    color_idx: int = None
+    color_scale: int = None
 
     def __post_init__(self):
         df = self.df
@@ -101,24 +102,18 @@ class PredictionFigureSeries:
         else:
             color = Color(GHG_MAIN_SECTOR_COLORS[self.graph.sector_name])
 
-        if self.luminance_change:
-            luminance = color.get_luminance()
-            saturation = color.get_luminance()
-            if self.luminance_change < 0:
-                luminance = luminance * (1 + self.luminance_change)
-                saturation = saturation * (1 + self.luminance_change)
-            else:
-                luminance = luminance + (1 - luminance) * self.luminance_change
-                saturation = saturation + (1 - saturation) * self.luminance_change
-            color.set_luminance(luminance)
-            color.set_saturation(saturation)
+        if self.color_idx is not None:
+            colors = generate_color_scale(color.hex, self.color_scale)
+            color = Color(colors[self.color_idx])
 
         if forecast:
-            # Lighten forecast series by 30 %
-            luminance = color.get_luminance()
-            luminance = luminance + (1 - color.get_luminance()) * .3
-            color.set_luminance(luminance)
-        return color.hex
+            opacity = 0.8
+        else:
+            opacity = 1
+
+        rgbstr = color.hex.strip('#')
+        rgb = [int(rgbstr[x * 2:x * 2 + 2], 16) for x in range(0, 3)]
+        return 'rgba(%d, %d, %d, %f)' % (*rgb, opacity)
 
 
 @dataclass
@@ -133,6 +128,7 @@ class PredictionFigure:
     allow_nonconsecutive_years: bool = False
     legend: bool = False
     legend_x: float = None
+    color_scale: int = None
 
     def __post_init__(self):
         self.series_list = []
@@ -228,7 +224,7 @@ class PredictionFigure:
         return traces
 
     def add_series(self, *args, **kwargs):
-        series = PredictionFigureSeries(self, *args, **kwargs)
+        series = PredictionFigureSeries(self, *args, **kwargs, color_scale=self.color_scale)
         self.series_list.append(series)
         df = series.df
         if self.min_year is None or df.index.min() < self.min_year:

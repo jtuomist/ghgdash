@@ -1,17 +1,8 @@
-import dash_html_components as html
-
-from calc.emissions import predict_emissions
-from .base import Page
+from .main_sector_base import MainSectorPage
 
 
-class BuildingHeatingPage(Page):
+class BuildingHeatingPage(MainSectorPage):
     id = 'building-heating'
     path = '/rakennusten-lammitys'
-    emission_sector = 'BuildingHeating'
-
-    def get_content(self):
-        df = predict_emissions()
-        return html.Div('moi')
-
-    def get_summary_vars(self):
-        return dict()
+    emission_sector = ('BuildingHeating',)
+    emission_name = 'Lämmityksen päästöt'

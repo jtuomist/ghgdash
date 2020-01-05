@@ -15,7 +15,7 @@ class Value:
         else:
             # Use three meaningful digits by default
             dec_fmt = '@@@'
-        out = format_decimal(val, format=dec_fmt, locale='fi')
+        out = format_decimal(val, format=dec_fmt, locale='fi_FI')
         return '|%s|' % out
 
 

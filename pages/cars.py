@@ -50,7 +50,7 @@ def make_bottom_bar(df):
     bar = StickyBar(
         label="Henkilöautojen päästöt",
         value=last_emissions,
-        goal=CARS_GOAL,
+        # goal=CARS_GOAL,
         unit='kt (CO₂e.) / a',
         current_page=page,
     )

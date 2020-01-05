@@ -23,9 +23,11 @@ def draw_existing_building_unit_heat_factor_graph(df):
         sector_name='BuildingHeating',
         unit_name='kWh/k-m²',
         title='Vanhan rakennuskannan ominaislämmönkulutus',
+        color_scale=2,
     )
     graph.add_series(
         df=df, column_name='ExistingBuildingHeatUsePerNetArea', trace_name='Ominaislämmönkulutus',
+        color_idx=1
     )
     return graph.get_figure()
 
@@ -35,10 +37,11 @@ def draw_new_building_unit_heat_factor_graph(df):
         sector_name='BuildingHeating',
         unit_name='kWh/k-m²',
         title='Uuden rakennuskannan ominaislämmönkulutus',
+        color_scale=2,
     )
     graph.add_series(
         df=df, column_name='NewBuildingHeatUsePerNetArea', trace_name='Ominaislämmönkulutus',
-        luminance_change=0.2
+        color_idx=1
     )
     return graph.get_figure()
 
@@ -52,14 +55,16 @@ def draw_heat_consumption(df):
         smoothing=True,
         stacked=True,
         fill=True,
+        color_scale=2,
     )
 
     graph.add_series(
         df=df, column_name='ExistingBuildingHeatUse', trace_name='Vanhat rakennukset',
+        color_idx=0,
     )
     graph.add_series(
         df=df, column_name='NewBuildingHeatUse', trace_name='Uudet rakennukset',
-        luminance_change=0.2
+        color_idx=1
     )
 
     return graph.get_figure()
@@ -70,7 +75,7 @@ def draw_district_heat_consumption_emissions(df):
         sector_name='BuildingHeating',
         unit_name='kt', title='Kaukolämmön kulutuksen päästöt',
         smoothing=True, allow_nonconsecutive_years=True,
-        fill=True
+        fill=True,
     )
     graph.add_series(
         df=df, column_name='NetEmissions', trace_name='Päästöt'
@@ -104,7 +109,7 @@ def make_bottom_bar(df):
     bar = StickyBar(
         label="Kaukolämmön kulutuksen päästöt",
         value=last_emissions,
-        goal=target_emissions,
+        # goal=target_emissions,
         unit='kt (CO₂e.)',
         current_page=page
     )

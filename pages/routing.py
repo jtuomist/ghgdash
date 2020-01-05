@@ -12,7 +12,7 @@ def load_pages():
     for mod_file in glob.glob(os.path.join(my_path, '*.py')):
         parent_mod, mod_name = mod_file.split('/')[-2:]
         mod_name, _ = os.path.splitext(mod_name)
-        if mod_name in ('__init__', 'base', 'hel_buildings', 'routing'):
+        if mod_name in ('__init__', 'base', 'main_sector_base', 'hel_buildings', 'routing'):
             continue
 
         mod = importlib.import_module('.'.join([parent_mod, mod_name]))
@@ -22,7 +22,13 @@ def load_pages():
             assert page.path not in all_pages, '%s already exists' % page.path
             all_pages[page.path] = page
         else:
-            members = inspect.getmembers(mod, lambda x: inspect.isclass(x) and issubclass(x, Page) and x is not Page)
+            def match(kls):
+                if not inspect.isclass(kls) or not issubclass(kls, Page):
+                    return False
+                if kls is Page or not hasattr(kls, 'id'):  # abstract page
+                    return False
+                return True
+            members = inspect.getmembers(mod, match)
             assert len(members) == 1, 'No Page subclasses found in %s' % mod
             page_class = members[0][1]
             assert page_class.path not in all_pages, '%s already exists' % page.path

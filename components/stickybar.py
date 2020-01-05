@@ -72,7 +72,8 @@ class StickyBar:
         if not active_sector:
             last_year = pd.Series()
         else:
-            print(last_year)
+            if isinstance(last_year.index, pd.MultiIndex) and len(last_year.index.levels) > 1:
+                last_year = last_year.sum(axis=0, level=0)
 
         colors = generate_color_scale(primary_sector_metadata['color'], len(last_year.index) + 1)
         colors.remove(primary_sector_metadata['color'])
@@ -99,7 +100,8 @@ class StickyBar:
                 x=[emissions],
                 name=name,
                 orientation='h',
-                hovertemplate='%{x: .0f} kt',
+                hoverinfo='text',
+                hovertext='%.0f kt: %s' % (emissions, name),
                 marker=dict(
                     color=color
                 )
@@ -119,7 +121,8 @@ class StickyBar:
             x=[emissions_left],
             name=name,
             orientation='h',
-            hovertemplate='%{x: .0f} kt',
+            hoverinfo='text',
+            hovertext='%.0f kt: %s' % (emissions_left, name),
             marker=dict(
                 color=primary_sector_metadata['color'],
                 line_width=0,

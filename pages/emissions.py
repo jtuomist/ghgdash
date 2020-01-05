@@ -7,6 +7,7 @@ from components.graphs import PredictionFigure
 from components.stickybar import StickyBar
 from variables import get_variable
 from calc.emissions import predict_emissions, SECTORS
+from utils.colors import generate_color_scale
 from pages.routing import get_page_for_emission_sector
 from .base import Page
 
@@ -26,14 +27,14 @@ def make_sector_fig(df, name, metadata):
     else:
         fig.legend = True
         fig.legend_x = 0.8
-        luminance_change = -0.3
-        for idx, col_name in enumerate(df.columns):
-            if col_name == 'Forecast':
-                continue
+        column_names = list(df.columns)
+        column_names.remove('Forecast')
+        colors = generate_color_scale(metadata['color'], len(column_names))
+        for idx, col_name in enumerate(column_names):
             subsector = metadata['subsectors'][col_name]
             fig.add_series(
                 df=df, trace_name=subsector['name'], column_name=col_name,
-                luminance_change=luminance_change + 0.3 * idx
+                historical_color=colors[idx]
             )
     return fig.get_figure()
 

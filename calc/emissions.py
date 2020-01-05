@@ -37,7 +37,16 @@ SECTORS = {
     'Transportation': dict(
         name='Liikenne',
         subsectors={
-            'Cars': dict(name='Henkilöautot'),
+            'Cars': dict(name='Henkilöautot', subsectors={
+                'CarFleet': dict(
+                    name='Ajoneuvoteknologia',
+                    improvement_name='Sähköautojen osuuden kasvu',
+                ),
+                'CarMileage': dict(
+                    name='Henkilöautoilusuorite',
+                    improvement_name='Henkilöautoilusuoritteen pieneneminen',
+                ),
+            }),
             'Trucks': dict(name='Kuorma-autot'),
             'OtherTransportation': dict(name='Muu liikenne'),
         }
@@ -45,7 +54,18 @@ SECTORS = {
     'ElectricityConsumption': dict(
         name='Kulutussähkö',
         subsectors={
-            'SolarProduction': dict(name='Aurinkosähkö'),
+            'SolarProduction': dict(
+                name='Aurinkosähkö',
+                improvement_name='Paikallisesti tuotetun sähkön osuuden lisääminen',
+            ),
+            'ElectricityDemand': dict(
+                name='Kulutussähkön kysyntä',
+                improvement_name='Kulutussähkön määrän vähentäminen'
+            ),
+            'ElectricityProduction': dict(
+                name='Sähköntuotanto',
+                improvement_name='Valtakunnallisen sähköntuotannon puhdistuminen'
+            )
         }
     ),
     'Waste': dict(name='Jätteiden käsittely'),
@@ -196,10 +216,30 @@ def calculate_district_heating_reductions(rdf, df):
     return out
 
 
+def calculate_cars_reductions(rdf, df):
+    perc = get_contributions_from_multipliers(df, 'Mileage', 'EmissionFactor')
+    out = pd.DataFrame(index=rdf.index)
+    out['CarFleet'] = rdf * perc.EmissionFactor
+    out['CarMileage'] = rdf * perc['Mileage']
+    return out
+
+
+def calculate_electricity_consumption_reductions(rdf, df):
+    perc = get_contributions_from_multipliers(df, 'NetConsumption', 'EmissionFactor')
+    out = pd.DataFrame(index=rdf.index)
+    ed = out['ElectricityDemand'] = rdf * perc.NetConsumption
+    out['ElectricityProduction'] = rdf * perc.EmissionFactor
+    out['SolarProduction'] = (df['SolarProduction'] / df['ElectricityConsumption']) * ed
+    out['ElectricityDemand'] -= out['SolarProduction']
+    return out
+
+
 @calcfunc(
     funcs=[
         predict_emissions,
         predict_district_heating_emissions,
+        predict_cars_emissions,
+        predict_electricity_consumption_emissions,
     ],
 )
 def predict_emission_reductions():
@@ -219,19 +259,26 @@ def predict_emission_reductions():
     df[col_names] = shares
     df = df.drop(columns=('BuildingHeating', 'DistrictHeat', ''))
 
+    pdf = predict_cars_emissions()
+    shares = calculate_cars_reductions(df['Transportation']['Cars'], pdf)
+    col_names = [('Transportation', 'Cars', str(x)) for x in shares.columns]
+    df[col_names] = shares
+    df = df.drop(columns=('Transportation', 'Cars', ''))
+
+    pdf = predict_electricity_consumption_emissions()
+    shares = calculate_electricity_consumption_reductions(df['ElectricityConsumption'][''], pdf)
+    col_names = [('ElectricityConsumption', str(x), '') for x in shares.columns]
+
+    df = df.drop(columns='ElectricityConsumption', level=0)
+    df[col_names] = shares
+
+    df = df.sort_index(axis=1)
+
     return df
-
-
-@calcfunc(
-    funcs=[
-        predict_emissions,
-    ]
-)
-def predict_building_heating_emission_reductions():
-    pass
 
 
 if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
     df = predict_emission_reductions()
     print(df.columns)
+    print(df)

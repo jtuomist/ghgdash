@@ -1,5 +1,3 @@
-import dash_html_components as html
-
 from calc.geothermal import predict_geothermal_production
 from calc.electricity import predict_electricity_emission_factor
 from calc.district_heating import predict_district_heating_emissions
@@ -158,14 +156,15 @@ class GeothermalPage(Page):
             smoothing=True,
             fill=True,
             stacked=True,
+            color_scale=2,
         )
         fig.add_series(
             df=df, column_name='GeoEnergyProductionExisting', trace_name='Vanha rakennuskanta',
-            luminance_change=-0.1,
+            color_idx=0,
         )
         fig.add_series(
             df=df, column_name='GeoEnergyProductionNew', trace_name='Uusi rakennuskanta',
-            luminance_change=0.1,
+            color_idx=1,
         )
         card.set_figure(fig)
         card.set_description(cd.render("""

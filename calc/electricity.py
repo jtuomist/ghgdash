@@ -1,7 +1,5 @@
 from datetime import timedelta
-import numpy as np
 import pandas as pd
-import scipy.stats
 
 from utils.data import find_consecutive_start
 
@@ -190,6 +188,7 @@ def predict_electricity_consumption_emissions():
     cdf['Emissions'] = cdf['ElectricityConsumption'] * cdf['EmissionFactor'] / 1000
     cdf['SolarEmissionReductions'] = cdf['SolarProduction'] * cdf['EmissionFactor'] / 1000
     cdf['NetEmissions'] = cdf['Emissions'] - cdf['SolarEmissionReductions']
+    cdf.index.name = 'Year'
 
     return cdf
 

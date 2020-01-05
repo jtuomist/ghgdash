@@ -20,12 +20,14 @@ def generate_solar_power_graph(df, label, col, ymax, is_existing):
     graph = PredictionFigure(
         sector_name='ElectricityConsumption', unit_name='MWp',
         title='%s rakennuskannan aurinkopaneelien piikkiteho' % label,
-        y_max=ymax
+        y_max=ymax, color_scale=2
     )
-    luminance_change = 0
     if is_existing:
-        luminance_change = -0.3
-    graph.add_series(df=df, trace_name='Piikkiteho', column_name=col, luminance_change=luminance_change)
+        color_idx = 0
+    else:
+        color_idx = 1
+
+    graph.add_series(df=df, trace_name='Piikkiteho', column_name=col, color_idx=color_idx)
     return graph.get_figure()
 
 
@@ -37,10 +39,11 @@ def generate_solar_power_stacked(df):
 
     graph = PredictionFigure(
         sector_name='ElectricityConsumption', unit_name='GWh',
-        title='Aurinkopaneelien sähköntuotanto', stacked=True, fill=True
+        title='Aurinkopaneelien sähköntuotanto', stacked=True, fill=True,
+        color_scale=2
     )
-    graph.add_series(df=df, trace_name='Vanhat rakennukset', column_name='SolarPowerExisting', luminance_change=-0.3)
-    graph.add_series(df=df, trace_name='Uudet rakennukset', column_name='SolarPowerNew')
+    graph.add_series(df=df, trace_name='Vanhat rakennukset', column_name='SolarPowerExisting', color_idx=0)
+    graph.add_series(df=df, trace_name='Uudet rakennukset', column_name='SolarPowerNew', color_idx=1)
 
     forecast_df = df[df.Forecast]
     hist_df = df[~df.Forecast]
