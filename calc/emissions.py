@@ -12,6 +12,7 @@ from utils.data import get_contributions_from_multipliers
 SECTORS = {
     'BuildingHeating': dict(
         name='Rakennusten lämmitys',
+        improvement_name='Rakennusten lämmityksen aiheuttamien päästöjen väheneminen',
         subsectors={
             'DistrictHeat': dict(
                 name='Kaukolämpö',
@@ -27,17 +28,27 @@ SECTORS = {
                     'DistrictHeatToGeothermalProduction': dict(
                         name='Kaukolämmön korvaaminen maalämmöllä'
                     ),
-                }
+                },
+                improvement_name='Kaukolämmön kulutuksen väheneminen ja tuotannon puhdistuminen'
             ),
-            'OilHeating': dict(name='Öljylämmitys'),
-            'ElectricityHeating': dict(name='Sähkölämmitys'),
+            'OilHeating': dict(
+                name='Öljylämmitys',
+                improvement_name='Öljyn osuuden vähentäminen erillislämmityksessä',
+            ),
+            'ElectricityHeating': dict(
+                name='Sähkölämmitys',
+                improvement_name='Sähkölämmityksen aiheuttamien päästöjen väheneminen'
+            ),
             'GeothermalHeating': dict(name='Maalämpö'),
         }
     ),
     'Transportation': dict(
         name='Liikenne',
-        subsectors={
-            'Cars': dict(name='Henkilöautot', subsectors={
+        improvement_name='Liikenteen päästöjen väheneminen',
+        subsectors={'Cars': dict(
+            name='Henkilöautot',
+            improvement_name='Henkilöautoliikenteen päästöjen väheneminen',
+            subsectors={
                 'CarFleet': dict(
                     name='Ajoneuvoteknologia',
                     improvement_name='Sähköautojen osuuden kasvu',
@@ -47,12 +58,17 @@ SECTORS = {
                     improvement_name='Henkilöautoilusuoritteen pieneneminen',
                 ),
             }),
-            'Trucks': dict(name='Kuorma-autot'),
-            'OtherTransportation': dict(name='Muu liikenne'),
+            'Trucks': dict(
+                name='Kuorma-autot', improvement_name='Kuorma-autoliikenteen päästöjen väheneminen'
+            ),
+            'OtherTransportation': dict(
+                name='Muu liikenne', improvement_name='Muun liikenteen päästöjen väheneminen'
+            ),
         }
     ),
     'ElectricityConsumption': dict(
         name='Kulutussähkö',
+        improvement_name='Kulutussähkön aiheuttamien päästöjen väheneminen',
         subsectors={
             'SolarProduction': dict(
                 name='Aurinkosähkö',
@@ -68,9 +84,18 @@ SECTORS = {
             )
         }
     ),
-    'Waste': dict(name='Jätteiden käsittely'),
-    'Industry': dict(name='Teollisuus ja työkoneet'),
-    'Agriculture': dict(name='Maatalous'),
+    'Waste': dict(
+        name='Jätteiden käsittely',
+        improvement_name='Jätteiden käsittelyn päästöjen väheneminen',
+    ),
+    'Industry': dict(
+        name='Teollisuus ja työkoneet',
+        improvement_name='Teollisuuden ja työkoneiden päästöjen väheneminen',
+    ),
+    'Agriculture': dict(
+        name='Maatalous',
+        improvement_name='Maatalouspäästöjen väheneminen',
+    ),
 }
 for key, val in SECTORS.items():
     if 'subsectors' not in val:

@@ -62,7 +62,10 @@ class StickyBar:
         sector_metadata = primary_sector_metadata
         for p in path:
             try:
-                last_year = last_year[p]
+                next_sector = last_year[p]
+                if not isinstance(next_sector, pd.Series):
+                    break
+                last_year = next_sector
                 sector_metadata = primary_sector_metadata['subsectors'][p]
             except KeyError:
                 # The sector might be missing because it has emissions
@@ -110,9 +113,10 @@ class StickyBar:
             emissions_left -= emissions
             active_emissions += emissions
 
-        name = primary_sector_metadata['name']
+        md = primary_sector_metadata
+        name = md.get('improvement_name') or md['name']
         if traces:
-            name += ' (muu)'
+            name = '%s (muu)' % name
         else:
             active_emissions = emissions_left
 

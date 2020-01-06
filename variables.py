@@ -66,6 +66,7 @@ VARIABLE_DEFAULTS = {
 
     'district_heating_existing_building_efficiency_change': -1.0,  # Percent per year
     'district_heating_new_building_efficiency_change': -2.5,  # Percent per year
+    'district_heating_heat_pump_cop': 4.0,
 
     'electricity_production_emissions_correction': 0,
     'electricity_consumption_per_capita_adjustment': -2.0,  # Percent per year

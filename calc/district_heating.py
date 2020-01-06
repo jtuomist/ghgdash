@@ -20,8 +20,18 @@ ALL_FUEL_PRODUCTION_TOTAL_COL = 'Kaukolämmön ja yhteistuotantosähkön tuotant
 
 
 @calcfunc(
+    datasets=dict(
+        fuel_classification='jyrjola/statfi/fuel_classification',
+    ),
+)
+def prepare_fuel_classification_dataset(datasets):
+    return datasets['fuel_classification']
+
+
+@calcfunc(
     variables=dict(
         bio_emission_factor='bio_emission_factor',
+        heat_pump_cop='district_heating_heat_pump_cop',
     ),
     datasets=dict(
         fuel_classification='jyrjola/statfi/fuel_classification',
@@ -66,7 +76,7 @@ def calculate_district_heating_unit_emissions(fuel_use_df, production_df, variab
     heat_pump_prod = production_df[HEAT_PUMP_COL]
     heat_pump_prod.name = 'Production with heat pumps'
 
-    heat_pump_ele = heat_pump_prod / 4
+    heat_pump_ele = heat_pump_prod / variables['heat_pump_cop']
     heat_pump_ele.name = 'Heat pump electricity consumption'
 
     # Calculate the emissions from the electricity used by the heat pumps
@@ -127,6 +137,8 @@ def generate_production_forecast(production_df, target_year, heat_demand_forecas
     df[PRODUCTION_LOSS_COL] = df.LossRatio * df[HEAT_DEMAND_COL]
     df[TOTAL_PRODUCTION_COL] = df[HEAT_DEMAND_COL] + df[PRODUCTION_LOSS_COL]
     df[FUEL_NET_PRODUCTION_COL] = df[TOTAL_PRODUCTION_COL] - df[HEAT_PUMP_COL]
+
+    # FIXME: Bio might not be CHP?
 
     # Amount of electricity that's produced in CHP is about 60 % of the total
     # heat demand.
